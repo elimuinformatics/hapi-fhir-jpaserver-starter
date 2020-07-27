@@ -44,5 +44,4 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 	private List<IAuthRule> authorizeRequest() {
 		return new RuleBuilder().allowAll().build();
 	}
-
 }
