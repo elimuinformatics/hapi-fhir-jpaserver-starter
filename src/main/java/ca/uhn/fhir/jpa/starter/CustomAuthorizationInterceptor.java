@@ -5,7 +5,6 @@ import java.util.List;
 import org.springframework.util.StringUtils;
 
 import ca.uhn.fhir.interceptor.api.Interceptor;
-import ca.uhn.fhir.rest.api.RestOperationTypeEnum;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.server.interceptor.auth.AuthorizationInterceptor;
 import ca.uhn.fhir.rest.server.interceptor.auth.IAuthRule;
@@ -29,9 +28,10 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 				return authorizeRequest();
 			} else if (!StringUtils.isEmpty(token) && token.equals(System.getenv(API_KEY))) {
 				return authorizeRequest();
-			} else {				
-				return (theRequestDetails.getOperation().equals(RestOperationTypeEnum.METADATA.getCode()))  ? authorizeRequest() : denyRequest();
+			} else {
+				return denyRequest();
 			}
+
 		} catch (Exception e) {
 			return denyRequest();
 		}
