@@ -32,8 +32,6 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 			} else {				
 				return (theRequestDetails.getOperation().equals(RestOperationTypeEnum.METADATA.getCode()))  ? authorizeRequest() : denyRequest();
 			}
-
-
 		} catch (Exception e) {
 			return denyRequest();
 		}
