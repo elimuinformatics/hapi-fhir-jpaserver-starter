@@ -12,6 +12,8 @@ FROM build-hapi AS build-distroless
 RUN mvn package spring-boot:repackage -Pboot
 RUN mkdir /app && cp /tmp/hapi-fhir-jpaserver-starter/target/ROOT.war /app/main.war
 
+RUN mkdir -p /data/hapi/lucenefiles && chmod 775 /data/hapi/lucenefiles && rm -rf /usr/local/tomcat/webapps/ROOT
+COPY --from=build-hapi /tmp/hapi-fhir-jpaserver-starter/target/*.war /usr/local/tomcat/webapps/ROOT.war
 
 ########### bitnami tomcat version is suitable for debugging and comes with a shell
 ########### it can be built using eg. `docker build --target tomcat .`
