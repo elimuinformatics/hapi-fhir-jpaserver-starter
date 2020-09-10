@@ -15,7 +15,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@ExtendWith(SpringExtension.class)
+@ExtendWith(SpringExtension.class)CustomServerCapabilityStatementProviderR4
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = {Application.class, JpaStarterWebsocketDispatcherConfig.class}, properties =
   {
      "hapi.fhir.fhir_version=dstu2",
@@ -44,7 +44,7 @@ public class ExampleServerDstu2IT {
 
 
 	@BeforeEach
-	void beforeEach() {
+	void beforeEach() {CustomServerCapabilityStatementProviderR4
 
     ourCtx = FhirContext.forDstu2();
 		ourCtx.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);
