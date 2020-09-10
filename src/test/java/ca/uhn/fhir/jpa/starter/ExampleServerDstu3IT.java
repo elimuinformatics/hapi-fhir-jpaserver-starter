@@ -15,15 +15,9 @@ import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.hl7.fhir.dstu3.model.*;
 import org.hl7.fhir.instance.model.api.IIdType;
-import org.junit.Assert;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.web.server.LocalServerPort;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.io.File;
 import java.io.IOException;
@@ -48,32 +42,25 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
      "hapi.fhir.allow_placeholder_references=true",
   })
 
+  private static final org.slf4j.Logger ourLog = org.slf4j.LoggerFactory.getLogger(ExampleServerDstu3IT.class);
+  private static IGenericClient ourClient;
+  private static FhirContext ourCtx;
+  private static int ourPort;
+  private static Server ourServer;
 
-public class ExampleServerDstu3IT implements IServerSupport {
-
-  private static final org.slf4j.Logger ourLog = org.slf4j.LoggerFactory.getLogger(ExampleServerDstu2IT.class);
-  private IGenericClient ourClient;
-  private FhirContext ourCtx;
-
-  @Autowired
-  DaoRegistry myDaoRegistry;
-
-  @LocalServerPort
-  private int port;
-
-  @BeforeEach
-  void beforeEach() {
+  static {
+    HapiProperties.forceReload();
+    HapiProperties.setProperty(HapiProperties.FHIR_VERSION, "DSTU3");
+    HapiProperties.setProperty(HapiProperties.DATASOURCE_URL, "jdbc:h2:mem:dbr3");
+    HapiProperties.setProperty(HapiProperties.SUBSCRIPTION_WEBSOCKET_ENABLED, "true");
+    HapiProperties.setProperty(HapiProperties.ALLOW_EXTERNAL_REFERENCES, "true");
+    HapiProperties.setProperty(HapiProperties.ALLOW_PLACEHOLDER_REFERENCES, "true");
     ourCtx = FhirContext.forDstu3();
-    ourCtx.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);
-    ourCtx.getRestfulClientFactory().setSocketTimeout(1200 * 1000);
-    String ourServerBase = "http://localhost:" + port + "/fhir/";
-    ourClient = ourCtx.newRestfulGenericClient(ourServerBase);
-    ourClient.registerInterceptor(new LoggingInterceptor(true));
   }
 
-    @Test
+  @Test
   public void testCreateAndRead() {
-
+    ourLog.info("Base URL is: " + HapiProperties.getServerAddress());
     String methodName = "testCreateResourceConditional";
 
     Patient pt = new Patient();
@@ -82,75 +69,6 @@ public class ExampleServerDstu3IT implements IServerSupport {
 
     Patient pt2 = ourClient.read().resource(Patient.class).withId(id).execute();
     assertEquals(methodName, pt2.getName().get(0).getFamily());
-  }
-
-  // Currently fails with:
-  // ca.uhn.fhir.rest.server.exceptions.InternalErrorException: HTTP 500 : Failed to call access method: java.lang.IllegalArgumentException: Could not load library source for libraries referenced in Measure/Measure/measure-EXM104-FHIR3-8.1.000/_history/1.
-  //@Test
-  public void testCQLEvaluateMeasureEXM104() throws IOException {
-    String measureId = "measure-EXM104-FHIR3-8.1.000";
-
-    int numFilesLoaded = loadDataFromDirectory("dstu3/EXM104/EXM104_FHIR3-8.1.000-files");
-    //assertEquals(numFilesLoaded, 3);
-    ourLog.info("{} files imported successfully!", numFilesLoaded);
-    //loadBundle("dstu3/EXM104/EXM104_FHIR3-8.1.000-bundle.json", ourCtx, ourClient);
-
-    // http://localhost:8080/fhir/Measure/measure-EXM104-FHIR3-8.1.000/$evaluate-measure?periodStart=2019-01-01&periodEnd=2019-12-31
-    Parameters inParams = new Parameters();
-//    inParams.addParameter().setName("measure").setValue(new StringType("Measure/measure-EXM104-8.2.000"));
-//    inParams.addParameter().setName("patient").setValue(new StringType("Patient/numer-EXM104-FHIR3"));
-//    inParams.addParameter().setName("periodStart").setValue(new StringType("2019-01-01"));
-//    inParams.addParameter().setName("periodEnd").setValue(new StringType("2019-12-31"));
-
-    Parameters outParams = ourClient
-      .operation()
-      .onInstance(new IdDt("Measure", measureId))
-      .named("$evaluate-measure")
-      .withParameters(inParams)
-      .cacheControl(new CacheControlDirective().setNoCache(true))
-      .withAdditionalHeader("Content-Type", "application/json")
-      .useHttpGet()
-      .execute();
-
-    List<Parameters.ParametersParameterComponent> response = outParams.getParameter();
-    Assert.assertTrue(!response.isEmpty());
-    Parameters.ParametersParameterComponent component = response.get(0);
-    Assert.assertTrue(component.getResource() instanceof MeasureReport);
-    MeasureReport report = (MeasureReport) component.getResource();
-    Assert.assertEquals("Measure/"+measureId, report.getMeasure());
-  }
-
-  private int loadDataFromDirectory(String theDirectoryName) throws IOException {
-    int count = 0;
-    ourLog.info("Reading files in directory: {}", theDirectoryName);
-    ClassPathResource dir = new ClassPathResource(theDirectoryName);
-    Collection<File> files = FileUtils.listFiles(dir.getFile(), null, false);
-    ourLog.info("{} files found.", files.size());
-    for (File file : files) {
-      String filename = file.getAbsolutePath();
-      ourLog.info("Processing filename '{}'", filename);
-      if (filename.endsWith(".cql") || filename.contains("expectedresults")) {
-        // Ignore .cql and expectedresults files
-        ourLog.info("Ignoring file: '{}'", filename);
-      } else if (filename.endsWith(".json")) {
-        if (filename.contains("bundle")) {
-          loadBundle(filename, ourCtx, ourClient);
-        } else {
-          loadResource(filename, ourCtx, myDaoRegistry);
-        }
-        count++;
-      } else {
-        ourLog.info("Ignoring file: '{}'", filename);
-      }
-    }
-    return count;
-  }
-
-  private Bundle loadBundle(String theLocation, FhirContext theCtx, IGenericClient theClient) throws IOException {
-    String json = stringFromResource(theLocation);
-    Bundle bundle = (Bundle) theCtx.newJsonParser().parseResource(json);
-    Bundle result = (Bundle) theClient.transaction().withBundle(bundle).execute();
-    return result;
   }
 
   @Test
@@ -182,7 +100,7 @@ public class ExampleServerDstu3IT implements IServerSupport {
     SocketImplementation mySocketImplementation = new SocketImplementation(mySubscriptionId.getIdPart(), EncodingEnum.JSON);
 
     myWebSocketClient.start();
-    URI echoUri = new URI("ws://localhost:" + port + "/websocket");
+    URI echoUri = new URI("ws://localhost:" + ourPort + "/hapi-fhir-jpaserver/websocket");
     ClientUpgradeRequest request = new ClientUpgradeRequest();
     ourLog.info("Connecting to : {}", echoUri);
     Future<Session> connection = myWebSocketClient.connect(mySocketImplementation, echoUri, request);
@@ -211,4 +129,39 @@ public class ExampleServerDstu3IT implements IServerSupport {
     ourClient.delete().resourceById(mySubscriptionId).execute();
   }
 
+  @AfterAll
+  public static void afterClass() throws Exception {
+    ourServer.stop();
+  }
+
+  @BeforeAll
+  public static void beforeClass() throws Exception {
+    String path = Paths.get("").toAbsolutePath().toString();
+
+    ourLog.info("Project base path is: {}", path);
+
+    ourServer = new Server(0);
+
+    WebAppContext webAppContext = new WebAppContext();
+    webAppContext.setContextPath("/hapi-fhir-jpaserver");
+    webAppContext.setDescriptor(path + "/src/main/webapp/WEB-INF/web.xml");
+    webAppContext.setResourceBase(path + "/target/hapi-fhir-jpaserver-starter");
+    webAppContext.setParentLoaderPriority(true);
+
+    ourServer.setHandler(webAppContext);
+    ourServer.start();
+
+    ourPort = JettyUtil.getPortForStartedServer(ourServer);
+
+    ourCtx.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);
+    ourCtx.getRestfulClientFactory().setSocketTimeout(1200 * 1000);
+    String ourServerBase = "http://localhost:" + ourPort + "/hapi-fhir-jpaserver/fhir/";
+    ourClient = ourCtx.newRestfulGenericClient(ourServerBase);
+    ourClient.registerInterceptor(new LoggingInterceptor(true));
+  }
+
+  public static void main(String[] theArgs) throws Exception {
+    ourPort = 8080;
+    beforeClass();
+  }
 }

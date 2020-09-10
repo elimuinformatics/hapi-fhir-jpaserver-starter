@@ -9,6 +9,11 @@ import ca.uhn.fhir.rest.api.MethodOutcome;
 import ca.uhn.fhir.rest.api.server.IBundleProvider;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
+import ca.uhn.fhir.rest.client.interceptor.LoggingInterceptor;
+import ca.uhn.fhir.test.utilities.JettyUtil;
+import ca.uhn.fhir.util.BundleUtil;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.webapp.WebAppContext;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
@@ -19,21 +24,22 @@ import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Person;
 import org.hl7.fhir.r4.model.Reference;
 import org.hl7.fhir.r4.model.Subscription;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.web.server.LocalServerPort;
 
 import java.net.URI;
+import java.nio.file.Paths;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static ca.uhn.fhir.util.TestUtil.waitForSize;
-import static java.lang.Thread.sleep;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = Application.class, properties = {
 		"spring.batch.job.enabled=false",
@@ -54,11 +60,14 @@ class ExampleServerR4IT {
 	@LocalServerPort
 	private int port;
 
-	@Test
-	@Order(0)
-	void testCreateAndRead() {
-		String methodName = "testCreateAndRead";
-		ourLog.info("Entering " + methodName + "()...");
+    static {
+        HapiProperties.forceReload();
+        HapiProperties.setProperty(HapiProperties.DATASOURCE_URL, "jdbc:h2:mem:dbr4");
+        HapiProperties.setProperty(HapiProperties.FHIR_VERSION, "R4");
+        HapiProperties.setProperty(HapiProperties.SUBSCRIPTION_WEBSOCKET_ENABLED, "true");
+        HapiProperties.setProperty(HapiProperties.EMPI_ENABLED, "true");
+        ourCtx = FhirContext.forR4();
+    }
 
 		Patient pt = new Patient();
 		pt.setActive(true);
@@ -67,17 +76,47 @@ class ExampleServerR4IT {
 		pt.addName().setFamily(methodName);
 		IIdType id = ourClient.create().resource(pt).execute().getId();
 
-		Patient pt2 = ourClient.read().resource(Patient.class).withId(id).execute();
-		assertEquals(methodName, pt2.getName().get(0).getFamily());
+        Patient pt = new Patient();
+        pt.setActive(true);
+        pt.getBirthDateElement().setValueAsString("2020-01-01");
+        pt.addIdentifier().setSystem("http://foo").setValue("12345");
+        pt.addName().setFamily(methodName);
+        IIdType id = ourClient.create().resource(pt).execute().getId();
 
-		// Wait until the MDM message has been processed
-		await().atMost(1, TimeUnit.MINUTES).until(() -> getGoldenResourcePatient() != null);
-		Patient goldenRecord = getGoldenResourcePatient();
+        Patient pt2 = ourClient.read().resource(Patient.class).withId(id).execute();
+        assertEquals(methodName, pt2.getName().get(0).getFamily());
 
-		// Verify that a golden record Patient was created
-		assertNotNull(
-			goldenRecord.getMeta().getTag("http://hapifhir.io/fhir/NamingSystem/mdm-record-status", "GOLDEN_RECORD"));
-	}
+        // Test EMPI
+
+        // Wait until the EMPI message has been processed
+        await().until(() -> getPeople().size() > 0);
+        List<Person> persons = getPeople();
+
+        // Verify a Person was created that links to our Patient
+        Optional<String> personLinkToCreatedPatient = persons.stream()
+          .map(Person::getLink)
+          .flatMap(Collection::stream)
+          .map(Person.PersonLinkComponent::getTarget)
+          .map(Reference::getReference)
+          .filter(pid -> id.toUnqualifiedVersionless().getValue().equals(pid))
+          .findAny();
+        assertTrue(personLinkToCreatedPatient.isPresent());
+    }
+
+  private List<Person> getPeople() {
+    Bundle bundle = ourClient.search().forResource(Person.class).cacheControl(new CacheControlDirective().setNoCache(true)).returnBundle(Bundle.class).execute();
+    return BundleUtil.toListOfResourcesOfType(ourCtx, bundle, Person.class);
+  }
+
+  @Test
+    public void testWebsocketSubscription() throws Exception {
+        /*
+         * Create subscription
+         */
+        Subscription subscription = new Subscription();
+        subscription.setReason("Monitor new neonatal function (note, age will be determined by the monitor)");
+        subscription.setStatus(Subscription.SubscriptionStatus.REQUESTED);
+        subscription.setCriteria("Observation?status=final");
 
 	private Patient getGoldenResourcePatient() {
 		Bundle bundle = ourClient.search().forResource(Patient.class)
@@ -141,16 +180,8 @@ class ExampleServerR4IT {
 		ourClient.transaction().withBundle(bundle).execute();
 	}
 
-	@Test
-	@Order(1)
-	void testWebsocketSubscription() throws Exception {
-		/*
-		 * Create subscription
-		 */
-		Subscription subscription = new Subscription();
-		subscription.setReason("Monitor new neonatal function (note, age will be determined by the monitor)");
-		subscription.setStatus(Subscription.SubscriptionStatus.REQUESTED);
-		subscription.setCriteria("Observation?status=final");
+        // Wait for the subscription to be activated
+        await().until(() -> activeSubscriptionCount() == 3);
 
 		Subscription.SubscriptionChannelComponent channel = new Subscription.SubscriptionChannelComponent();
 		channel.setType(Subscription.SubscriptionChannelType.WEBSOCKET);
@@ -187,16 +218,18 @@ class ExampleServerR4IT {
 		obs.setStatus(Observation.ObservationStatus.FINAL);
 		ourClient.create().resource(obs).execute();
 
-		/*
-		 * Ensure that we receive a ping on the websocket
-		 */
-		waitForSize(1, () -> mySocketImplementation.myPingCount);
+  private int activeSubscriptionCount() {
+    return ourClient.search().forResource(Subscription.class).where(Subscription.STATUS.exactly().code("active")).cacheControl(new CacheControlDirective().setNoCache(true)).returnBundle(Bundle.class).execute().getEntry().size();
+  }
 
-		/*
-		 * Clean up
-		 */
-		ourClient.delete().resourceById(mySubscriptionId).execute();
-	}
+  @AfterAll
+    public static void afterClass() throws Exception {
+        ourServer.stop();
+    }
+
+    @BeforeAll
+    public static void beforeClass() throws Exception {
+        String path = Paths.get("").toAbsolutePath().toString();
 
 	private int activeSubscriptionCount() {
 		return ourClient.search().forResource(Subscription.class).where(Subscription.STATUS.exactly().code("active"))

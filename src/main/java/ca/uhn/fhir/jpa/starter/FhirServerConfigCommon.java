@@ -15,7 +15,7 @@ import ca.uhn.fhir.rest.server.mail.MailConfig;
 import ca.uhn.fhir.rest.server.mail.MailSvc;
 import com.google.common.base.Strings;
 import org.hl7.fhir.dstu2.model.Subscription;
-import org.springframework.boot.env.YamlPropertySourceLoader;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
@@ -129,23 +129,12 @@ public class FhirServerConfigCommon {
   }
 
   @Bean
-  public YamlPropertySourceLoader yamlPropertySourceLoader() {
-    return new YamlPropertySourceLoader();
-  }
-
-  @Bean
-  public PartitionSettings partitionSettings(AppProperties appProperties) {
+  public PartitionSettings partitionSettings() {
     PartitionSettings retVal = new PartitionSettings();
 
     // Partitioning
-    if (appProperties.getPartitioning() != null) {
+    if (HapiProperties.getPartitioningMultitenancyEnabled()) {
       retVal.setPartitioningEnabled(true);
-      retVal.setIncludePartitionInSearchHashes(appProperties.getPartitioning().getPartitioning_include_in_search_hashes());
-      if(appProperties.getPartitioning().getAllow_references_across_partitions()) {
-        retVal.setAllowReferencesAcrossPartitions(CrossPartitionReferenceMode.ALLOWED_UNQUALIFIED);
-      } else {
-        retVal.setAllowReferencesAcrossPartitions(CrossPartitionReferenceMode.NOT_ALLOWED);
-      }
     }
 
     return retVal;
@@ -218,12 +207,14 @@ public class FhirServerConfigCommon {
     if (appProperties.getSubscription() != null && appProperties.getSubscription().getEmail() != null) {
 		 MailConfig mailConfig = new MailConfig();
 
-      AppProperties.Subscription.Email email = appProperties.getSubscription().getEmail();
-      mailConfig.setSmtpHostname(email.getHost());
-      mailConfig.setSmtpPort(email.getPort());
-      mailConfig.setSmtpUsername(email.getUsername());
-      mailConfig.setSmtpPassword(email.getPassword());
-      mailConfig.setSmtpUseStartTLS(email.getStartTlsEnable());
+      retVal.setSmtpServerHostname(this.emailHost);
+      retVal.setSmtpServerPort(this.emailPort);
+      retVal.setSmtpServerUsername(this.emailUsername);
+      retVal.setSmtpServerPassword(this.emailPassword);
+      retVal.setAuth(this.emailAuth);
+      retVal.setStartTlsEnable(this.emailStartTlsEnable);
+      retVal.setStartTlsRequired(this.emailStartTlsRequired);
+      retVal.setQuitWait(this.emailQuitWait);
 
 		 IMailSvc mailSvc = new MailSvc(mailConfig);
 		 IEmailSender emailSender = new EmailSenderImpl(mailSvc);

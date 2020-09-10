@@ -6,12 +6,11 @@ import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
 import ca.uhn.fhir.rest.client.interceptor.LoggingInterceptor;
 import org.hl7.fhir.instance.model.api.IIdType;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.web.server.LocalServerPort;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
+
+import java.nio.file.Paths;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -43,9 +42,29 @@ public class ExampleServerDstu2IT {
 		assertEquals(methodName, pt2.getName().get(0).getFamily().get(0).getValue());
 	}
 
+	@AfterAll
+	public static void afterClass() throws Exception {
+		ourServer.stop();
+	}
 
-	@BeforeEach
-	void beforeEach() {
+	@BeforeAll
+	public static void beforeClass() throws Exception {
+		String path = Paths.get("").toAbsolutePath().toString();
+
+		ourLog.info("Project base path is: {}", path);
+
+		ourServer = new Server(0);
+
+		WebAppContext webAppContext = new WebAppContext();
+		webAppContext.setContextPath("/hapi-fhir-jpaserver");
+		webAppContext.setDescriptor(path + "/src/main/webapp/WEB-INF/web.xml");
+		webAppContext.setResourceBase(path + "/target/hapi-fhir-jpaserver-starter");
+		webAppContext.setParentLoaderPriority(true);
+
+		ourServer.setHandler(webAppContext);
+		ourServer.start();
+
+		ourPort = JettyUtil.getPortForStartedServer(ourServer);
 
     ourCtx = FhirContext.forDstu2();
 		ourCtx.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);
