@@ -6,11 +6,8 @@ import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.RSAPublicKeySpec;
-import java.util.ArrayList;
 import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
-import org.apache.commons.lang3.ObjectUtils;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -25,15 +22,22 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
-import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
-import ca.uhn.fhir.context.FhirContext;
-import ca.uhn.fhir.context.RuntimeResourceDefinition;
-import ca.uhn.fhir.context.RuntimeSearchParam;
+
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 
 public class OAuth2Helper {
 	private static final Logger logger = LoggerFactory.getLogger(OAuth2Helper.class);
+	private static final String OAUTH_ENABLED = System.getenv("OAUTH_ENABLED");
+
+	protected Boolean isOAuthEnabled() {
+		return ((OAUTH_ENABLED != null) && Boolean.parseBoolean(OAUTH_ENABLED));
+	}
+
+	protected Boolean isOAuthHeaderPresent(RequestDetails theRequest) {
+		String token = theRequest.getHeader(HttpHeaders.AUTHORIZATION);
+		return (!StringUtils.isEmpty(token));
+	}
 
 	protected String getJwtKeyId(String token) {
 		String tokenHeader = token.split("\\.")[0];
@@ -49,7 +53,8 @@ public class OAuth2Helper {
 	}
 
 	// The Base64 strings that come from a JWKS need some manipilation before they
-	// can be decoded, so we do that here
+	// can be decoded,
+	// so we do that here
 	protected byte[] base64Decode(String base64) throws IOException {
 		base64 = base64.replaceAll("-", "+");
 		base64 = base64.replaceAll("_", "/");
@@ -113,46 +118,5 @@ public class OAuth2Helper {
 
 		return publicKey;
 	}
-	
-	protected Boolean hasClientRole(DecodedJWT jwt, String clientId, String userRole) {
-		Claim claim = jwt.getClaim("resource_access");
-		HashMap<String, HashMap<String, ArrayList<String>>> resources = claim.as(HashMap.class);
-		HashMap<String, ArrayList<String>> clientMap = resources.getOrDefault(clientId, new HashMap<String, ArrayList<String>>());
-		ArrayList<String> roles = clientMap.getOrDefault("roles", new ArrayList<String>());
-		return roles.contains(userRole);
-	}
 
-	protected String getPatientReferenceFromToken(DecodedJWT jwt, String claimName) {
-		if (claimName != null) {
-			Claim claim = jwt.getClaim(claimName);
-			String patientRef = claim.as(String.class);
-			return patientRef;
-		}
-		return null;
-	}
-
-	protected boolean canBeInPatientCompartment(String resourceType) {
-		/*
-		 * For Bundle Request resourceType would be null.
-		 * For now we allow all bundle operations this will apply normal rules from authorization intercepter
-		 */
-		if (ObjectUtils.isEmpty(resourceType)) {
-			return true;
-		}
-		FhirContext ctx = FhirContext.forR4();
-		RuntimeResourceDefinition data = ctx.getResourceDefinition(resourceType);
-		List<RuntimeSearchParam> compartmentList = data.getSearchParamsForCompartmentName("Patient");
-		return !compartmentList.isEmpty();
-	}
-
-  public boolean verifyClientId(DecodedJWT jwt, String oauthClientId) {
-    Claim claim = jwt.getClaim("azp");
-    String azp = claim.asString();
-    return azp.equals(oauthClientId);
-  }
-  
-  public boolean isOAuthHeaderPresent(RequestDetails theRequest) {
-    String token = theRequest.getHeader(HttpHeaders.AUTHORIZATION);
-    return (!StringUtils.isEmpty(token) && token.toUpperCase().contains(CustomAuthorizationInterceptor.getTokenPrefix()));
-  }
 }
