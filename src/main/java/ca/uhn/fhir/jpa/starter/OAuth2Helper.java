@@ -11,6 +11,8 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import org.apache.commons.lang3.ObjectUtils;
+import java.util.Base64;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
