@@ -11,8 +11,6 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import org.apache.commons.lang3.ObjectUtils;
-import java.util.Base64;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -35,6 +33,7 @@ import ca.uhn.fhir.rest.api.server.RequestDetails;
 
 public class OAuth2Helper {
 	private static final Logger logger = LoggerFactory.getLogger(OAuth2Helper.class);
+	private static final String CLIENT = System.getenv("OAUTH_CLIENT_NAME");
 
 	protected String getJwtKeyId(String token) {
 		String tokenHeader = token.split("\\.")[0];
@@ -156,4 +155,13 @@ public class OAuth2Helper {
     String token = theRequest.getHeader(HttpHeaders.AUTHORIZATION);
     return (!ObjectUtils.isEmpty(token) && token.toUpperCase().contains(CustomAuthorizationInterceptor.getTokenPrefix()));
   }
+
+	protected ArrayList<String> getRoles(DecodedJWT jwt) {
+		Claim claim = jwt.getClaim("resource_access");
+		HashMap<String, HashMap<String, ArrayList<String>>> resources = claim.as(HashMap.class);
+		HashMap<String, ArrayList<String>> clientMap = resources.getOrDefault(CLIENT, new HashMap<String, ArrayList<String>>());
+		ArrayList<String> roles = clientMap.getOrDefault("roles", new ArrayList<String>());
+		return roles;
+	}
+
 }
