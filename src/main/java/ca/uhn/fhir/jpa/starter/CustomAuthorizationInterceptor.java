@@ -1,6 +1,9 @@
 package ca.uhn.fhir.jpa.starter;
 
 import java.security.PublicKey;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.lang3.ObjectUtils;
@@ -39,6 +42,8 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 	private static final String BASIC_AUTH_USERNAME = System.getenv("BASIC_AUTH_USERNAME");
 	private static final String BASIC_AUTH_PASS = System.getenv("BASIC_AUTH_PASS");
 	private static final String BASIC_AUTH_TOKEN_PREFIX = "BASIC ";
+	private static final String TOKEN_PREFIX = "BEARER ";
+	private static final List<String> ROLES = getRolesList();
 	private static PublicKey publicKey = null;
 	private static OAuth2Helper oAuth2Helper = new OAuth2Helper();
 	private static BasicAuthHelper basicAuthHelper = new BasicAuthHelper();
