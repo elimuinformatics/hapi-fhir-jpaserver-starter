@@ -1,7 +1,9 @@
 package ca.uhn.fhir.jpa.starter;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletRequest;
@@ -14,6 +16,8 @@ import org.hl7.fhir.r4.model.Meta;
 import org.hl7.fhir.r4.model.UriType;
 import org.springframework.context.annotation.Configuration;
 
+import com.google.gson.Gson;
+
 import ca.uhn.fhir.jpa.api.config.DaoConfig;
 import ca.uhn.fhir.jpa.api.dao.IFhirSystemDao;
 import ca.uhn.fhir.jpa.provider.r4.JpaConformanceProviderR4;
@@ -24,8 +28,7 @@ import ca.uhn.fhir.rest.server.RestfulServer;
 @Configuration
 public class CustomServerCapabilityStatementProviderR4 extends JpaConformanceProviderR4 {
 
-	private static final String OAUTH_TOKEN_URL = System.getenv("OAUTH_TOKEN_URL");
-	private static final String OAUTH_MANAGE_URL = System.getenv("OAUTH_MANAGE_URL");
+	private static final String EXTENSION_MAP = System.getenv("OAUTH_CAPABILITY_EXTENSION");
 	
 	private CapabilityStatement capabilityStatement;
 
@@ -46,10 +49,13 @@ public class CustomServerCapabilityStatementProviderR4 extends JpaConformancePro
 	}
 	
 	private static CapabilityStatementRestSecurityComponent getSecurityComponent() {
+		Gson json = new Gson();
+		Map<String, String> oauthUrl = json.fromJson(EXTENSION_MAP, HashMap.class);
 		CapabilityStatementRestSecurityComponent security = new CapabilityStatementRestSecurityComponent();
 		List<Extension> extensions = new ArrayList<Extension>();
-		extensions.add(new Extension("token", new UriType(OAUTH_TOKEN_URL)));
-		extensions.add(new Extension("manage", new UriType(OAUTH_MANAGE_URL)));
+		oauthUrl.entrySet().forEach(entry -> {
+			extensions.add(new Extension(entry.getValue(), new UriType(entry.getKey())));
+		});
 		List<Extension> extensionsList = new ArrayList<Extension>();
 		extensionsList.add((Extension) new Extension(
 				new UriType("http://fhir-registry.smarthealthit.org/StructureDefinition/oauth-uris"))
