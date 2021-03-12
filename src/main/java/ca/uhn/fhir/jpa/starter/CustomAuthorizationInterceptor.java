@@ -40,7 +40,8 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 	private static final String BASIC_AUTH_PASS = System.getenv("BASIC_AUTH_PASS");
 	private static final String BASIC_AUTH_TOKEN_PREFIX = "BASIC ";
 	private static final String TOKEN_PREFIX = "BEARER ";
-	private static final String ROLE = System.getenv("OAUTH_USER_ROLE");
+	private static final String OAUTH_USER_ROLE = System.getenv("OAUTH_USER_ROLE");
+	private static final String OAUTH_CLIENT_ID = System.getenv("OAUTH_CLIENT_ID");
 	private static PublicKey publicKey = null;
 	private static OAuth2Helper oAuth2Helper = new OAuth2Helper();
 	private static BasicAuthHelper basicAuthHelper = new BasicAuthHelper();

@@ -5,8 +5,6 @@ services:
     build: .
     container_name: hapi-fhir-jpaserver-start
     restart: on-failure
-    ports:
-      - '8080:8080'
     environment:
       JAVA_OPTS: "-Dhapi.properties=/usr/local/tomcat/webapps/ROOT/WEB-INF/classes/hapi-r4.properties -Denable-web=false -Durl_pattern=/fhir/*"
       HAPI_FHIR_VERSION: "R4"

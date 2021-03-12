@@ -34,7 +34,6 @@ import ca.uhn.fhir.rest.api.server.RequestDetails;
 
 public class OAuth2Helper {
 	private static final Logger logger = LoggerFactory.getLogger(OAuth2Helper.class);
-	private static final String CLIENT_NAME = System.getenv("OAUTH_CLIENT_NAME");
 
 	protected String getJwtKeyId(String token) {
 		String tokenHeader = token.split("\\.")[0];
