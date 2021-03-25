@@ -9,32 +9,21 @@ import ca.uhn.fhir.rest.server.interceptor.auth.SearchNarrowingInterceptor;
 
 @Interceptor
 public class CustomSearchNarrowingInterceptor extends SearchNarrowingInterceptor {
-
-  private static final String OAUTH_CLAIM_NAME = "patient";
-  
   private OAuth2Helper oAuth2Helper = new OAuth2Helper();
 
   @Override
   protected AuthorizedList buildAuthorizedList(RequestDetails theRequestDetails) {
     String patientId = getPatientFromToken(theRequestDetails);
-    if (patientId != null) {
-      String patientRef = "Patient/" + patientId;
-      return new AuthorizedList().addCompartment(patientRef);
-    }
-    return new AuthorizedList();
+    String patientRef = "Patient/" + patientId;
+    return new AuthorizedList().addCompartment(patientRef);
   }
 
   private String getPatientFromToken(RequestDetails theRequestDetails) {
-    if (oAuth2Helper.isOAuthHeaderPresent(theRequestDetails)) {      
-      String token = theRequestDetails.getHeader("Authorization");
-      if (token != null) {
-        token = token.substring(CustomAuthorizationInterceptor.getTokenPrefix().length());
-        DecodedJWT jwt = JWT.decode(token);
-        String patRefId = oAuth2Helper.getPatientReferenceFromToken(jwt, OAUTH_CLAIM_NAME);
-        return patRefId;
-      }
-    }
-    return null;
+    String token = theRequestDetails.getHeader("Authorization");
+    token = token.substring(CustomAuthorizationInterceptor.getTokenPrefix().length());
+    DecodedJWT jwt = JWT.decode(token);
+    String patRefId = oAuth2Helper.getPatientReferenceFromToken(jwt);
+    return patRefId;
   }
 
 }
