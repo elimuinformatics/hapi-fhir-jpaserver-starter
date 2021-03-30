@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Import;
 
 import ca.uhn.fhir.context.FhirVersionEnum;
 import ca.uhn.fhir.rest.server.interceptor.auth.AuthorizationInterceptor;
+import ca.uhn.fhir.rest.server.interceptor.consent.ConsentInterceptor;
 
 @Import(AppProperties.class)
 public class JpaRestfulServer extends BaseJpaRestfulServer {
@@ -35,6 +36,8 @@ public class JpaRestfulServer extends BaseJpaRestfulServer {
     	          daoConfig, searchParamRegistry);
     	setServerConformanceProvider(customCapabilityStatementProviderR4);
     }
+    ConsentInterceptor consentInterceptor = new ConsentInterceptor(new CustomConsentService());
+    this.registerInterceptor(consentInterceptor);
     AuthorizationInterceptor authorizationInterceptor = new CustomAuthorizationInterceptor();
     this.registerInterceptor(authorizationInterceptor);
   }
