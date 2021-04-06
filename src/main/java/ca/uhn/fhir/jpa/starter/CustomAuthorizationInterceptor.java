@@ -87,23 +87,6 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 		return new RuleBuilder().allowAll().build();
 	}
 
-	private List<IAuthRule> allowForClaimResourceId(RequestDetails theRequestDetails,String patientId) {
-		return new RuleBuilder().allow().read().allResources()
-				.inCompartment("Patient", new IdType("Patient", patientId)).andThen().allow().write().allResources()
-				.inCompartment("Patient", new IdType("Patient", patientId)).andThen().denyAll().build();
-	}
-
-	private String getPatientFromToken(RequestDetails theRequestDetails) {
-		String token = theRequestDetails.getHeader("Authorization");
-		if (token != null) {
-			token = token.substring(CustomAuthorizationInterceptor.getTokenPrefix().length());
-			DecodedJWT jwt = JWT.decode(token);
-			String patRefId = oAuth2Helper.getPatientReferenceFromToken(jwt, "patient");
-			return patRefId;
-		}
-		return null;
-	}
-
 	private List<IAuthRule> authorizeOAuth(RequestDetails theRequest) throws Exception {
 		String token = theRequest.getHeader(HttpHeaders.AUTHORIZATION);
 		if (StringUtils.isEmpty(token)) {
