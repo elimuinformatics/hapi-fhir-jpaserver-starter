@@ -1,17 +1,12 @@
 package ca.uhn.fhir.jpa.starter;
 
-import java.util.List;
-import java.util.Map;
-import org.apache.commons.lang3.ObjectUtils;
 import org.hl7.fhir.instance.model.api.IBaseResource;
-import org.hl7.fhir.r4.model.Base;
 import org.hl7.fhir.r4.model.IdType;
 import org.hl7.fhir.r4.model.Reference;
-import org.hl7.fhir.r4.model.Resource;
+import org.hl7.fhir.r4.model.Task;
 import org.springframework.stereotype.Service;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import ca.uhn.fhir.jpa.api.dao.DaoRegistry;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.server.interceptor.consent.ConsentOutcome;
@@ -27,7 +22,7 @@ public class CustomConsentService implements IConsentService {
       org.slf4j.LoggerFactory.getLogger(CustomConsentService.class);
 
   private OAuth2Helper oAuth2Helper = new OAuth2Helper();
-  private DaoRegistry daoRegistry;
+  DaoRegistry daoRegistry;
 
   public CustomConsentService() {}
 
@@ -38,63 +33,56 @@ public class CustomConsentService implements IConsentService {
   @Override
   public ConsentOutcome startOperation(RequestDetails theRequestDetails,
       IConsentContextServices theContextServices) {
-    /*
-     * Returning authorized if there is no Authorization header present or if requested resource is
-     * present in Patient Compartment For both these cases all the consent logic is in authorization
-     * intercepter rules.
-     */
-    if (ObjectUtils.isEmpty(theRequestDetails.getHeader("Authorization"))
-        || oAuth2Helper.canBeInPatientCompartment(theRequestDetails.getResourceName())) {
+    if (oAuth2Helper.checkInPatientCompartment(theRequestDetails.getResourceName())) {
       return ConsentOutcome.AUTHORIZED;
     }
-    String patientId = getPatientFromToken(theRequestDetails);
-    String resourceName = null;
-    IBaseResource existingResource = null;
-    boolean proceed = false;
-    switch (theRequestDetails.getRequestType().toString()) {
-      case "POST":
-        resourceName = theRequestDetails.getResourceName();
-        proceed = isResourceValid(resourceName, patientId, theRequestDetails.getResource());
-        break;
-      case "PUT":
-        resourceName = theRequestDetails.getResourceName();
-        existingResource = getResourceFromDB(theRequestDetails.getRequestPath());
-        if (isResourceValid(resourceName, patientId, existingResource)) {
-          proceed = isResourceValid(resourceName, patientId, theRequestDetails.getResource());
-        }
-        break;
-      case "PATCH":
-        resourceName = theRequestDetails.getResourceName();
-        existingResource = getResourceFromDB(theRequestDetails.getRequestPath());
-        if (isResourceValid(resourceName, patientId, existingResource)) {
-          // As Patch request body doesn't contain any Resource we need to handle it
-          // differently
-          proceed = isPatchRequestBodyValid(resourceName,
-              new String(theRequestDetails.getRequestContentsIfLoaded()));
-        }
-        break;
-      default:
-        proceed = true;
-        break;
+    if (theRequestDetails.getHeader("Authorization") != null) {
+      String patientId = getPatientFromToken(theRequestDetails);
+      String resourceName = null;
+      boolean proceed = false;
+      switch (theRequestDetails.getRequestType().toString()) {
+        case "POST":
+          resourceName = theRequestDetails.getResourceName();
+          proceed = validateResource(resourceName, patientId, theRequestDetails.getResource());
+          break;
+        case "PUT":
+          resourceName = theRequestDetails.getResourceName();
+          IBaseResource putResource = getResourceFromDB(theRequestDetails.getRequestPath());
+          if (validateResource(resourceName, patientId, putResource)) {
+            proceed = validateResource(resourceName, patientId, theRequestDetails.getResource());
+          }
+          break;
+        case "PATCH":
+          resourceName = theRequestDetails.getResourceName();
+          IBaseResource patchResource = getResourceFromDB(theRequestDetails.getRequestPath());
+          proceed = validateResource(resourceName, patientId, patchResource);
+          break;
+        case "GET":
+          resourceName = theRequestDetails.getResourceName();
+          if (theRequestDetails.getRequestPath().split("/").length > 1) {
+            IBaseResource getResource = getResourceFromDB(theRequestDetails.getRequestPath());
+            proceed = validateResource(resourceName, patientId, getResource);
+          }
+          proceed = true;
+          break;
+        default:
+          proceed = true;
+          break;
+      }
+      return proceed ? ConsentOutcome.PROCEED : ConsentOutcome.REJECT;
     }
-    return proceed ? ConsentOutcome.PROCEED : ConsentOutcome.REJECT;
+    return ConsentOutcome.AUTHORIZED;
   }
 
   @Override
   public ConsentOutcome canSeeResource(RequestDetails theRequestDetails, IBaseResource theResource,
       IConsentContextServices theContextServices) {
-    /*
-     * Returning authorized if there is no Authorization header present or if requested resource is
-     * present in Patient Compartment For both this cases all the consent logic is in authorization
-     * intercepter rules
-     */
-    if (ObjectUtils.isEmpty(theRequestDetails.getHeader("Authorization"))
-        || oAuth2Helper.canBeInPatientCompartment(theRequestDetails.getResourceName())) {
+    if (oAuth2Helper.checkInPatientCompartment(theRequestDetails.getResourceName())) {
       return ConsentOutcome.AUTHORIZED;
     }
     String patientId = getPatientFromToken(theRequestDetails);
     String resourceName = theResource.getClass().getSimpleName();
-    return isResourceValid(resourceName, patientId, theResource) ? ConsentOutcome.PROCEED
+    return validateResource(resourceName, patientId, theResource) ? ConsentOutcome.PROCEED
         : ConsentOutcome.REJECT;
   }
 
@@ -103,13 +91,14 @@ public class CustomConsentService implements IConsentService {
     return daoRegistry.getResourceDao(requestDetail[0]).read(new IdType(requestDetail[1]));
   }
 
-  private boolean isResourceValid(String resourceName, String patientId,
+
+  private boolean validateResource(String resourceName, String patientId,
       IBaseResource theResource) {
     if (patientId != null) {
       String patientRef = "Patient/" + patientId;
       switch (resourceName) {
         case "Task":
-          return isReferanceValid((Resource) theResource, patientRef, "for");
+          return validateTaskResource((Task) theResource, patientRef);
         default:
           return false;
       }
@@ -117,19 +106,15 @@ public class CustomConsentService implements IConsentService {
     return true;
   }
 
-  private boolean isReferanceValid(Resource theResource, String patientRef,
-      String refPropertyName) {
+  private boolean validateTaskResource(Task task, String patientRef) {
     try {
-      List<Base> refList = theResource.getNamedProperty(refPropertyName).getValues();
-      for (Base ref : refList) {
-        if (((Reference)ref).getReference().equals(patientRef)) {
-          return true;
-        }
+      Reference ref = (Reference) task.getNamedProperty("for").getValues().get(0);
+      if (ref.getReference().equals(patientRef)) {
+        return true;
       }
       return false;
     } catch (Exception e) {
-      log.error("Unable to find patient reference in " + theResource.getClass().getCanonicalName()
-          + " resource");
+      log.error("Unable to find patient reference in Task resource");
       return false;
     }
   }
@@ -140,37 +125,5 @@ public class CustomConsentService implements IConsentService {
     DecodedJWT jwt = JWT.decode(token);
     String patRefId = oAuth2Helper.getPatientReferenceFromToken(jwt, OAUTH_CLAIM_NAME);
     return patRefId;
-  }
-
-  /*
-   * For Patch Request we take Request body(byte array) and convert to json string Then using
-   * ObjectMapper we can convert json string to List of key value pairs(map object)
-   */
-  @SuppressWarnings("unchecked")
-  private boolean isPatchRequestBodyValid(String resourceName, String content) {
-    try {
-      ObjectMapper mapper = new ObjectMapper();
-      List<Map<String, String>> opreationList = mapper.readValue(content, List.class);
-      switch (resourceName) {
-        case "Task":
-          return isPatchRequestValid(opreationList, "/for/reference");
-        default:
-          return false;
-      }
-    } catch (Exception e) {
-      return false;
-    }
-  }
-
-  /*
-   * Here we check if request performs any patch operation type (add, insert, delete, replace or
-   * move) on reference. If so we deny request by returning false
-   */
-  private boolean isPatchRequestValid(List<Map<String, String>> opreationList, String refPath) {
-    for (Map<String, String> opreation : opreationList) {
-      if (opreation.get("path").equals(refPath))
-        return false;
-    }
-    return true;
   }
 }
