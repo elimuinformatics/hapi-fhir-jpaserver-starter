@@ -129,15 +129,6 @@ public class OAuth2Helper {
 		return null;
 	}
 
-	protected String getPatientReferenceFromToken(DecodedJWT jwt, String claimName) {
-		if (claimName != null) {
-			Claim claim = jwt.getClaim(claimName);
-			String patientRef = claim.as(String.class);
-			return patientRef;
-		}
-		return null;
-	}
-
 	protected boolean canBeInPatientCompartment(String resourceType) {
 		/*
 		 * For Bundle Request resourceType would be null.
