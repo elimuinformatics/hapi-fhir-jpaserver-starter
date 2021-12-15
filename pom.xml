@@ -115,7 +115,27 @@
                     <groupId>commons-logging</groupId>
                     <artifactId>commons-logging</artifactId>
                 </exclusion>
+                <exclusion>
+                	<groupId>ca.uhn.hapi.fhir</groupId>
+                	<artifactId>hapi-fhir-elasticsearch-6</artifactId>
+                </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+        	<groupId>ca.uhn.hapi.fhir</groupId>
+        	<artifactId>hapi-fhir-elasticsearch-6</artifactId>
+        	<version>5.2.0</version>
+        	<exclusions>
+        		<exclusion>
+        			<groupId>org.apache.logging.log4j</groupId>
+        			<artifactId>log4j-api</artifactId>
+        		</exclusion>
+        	</exclusions>
+        </dependency>
+        <dependency>
+        	<groupId>org.apache.logging.log4j</groupId>
+        	<artifactId>log4j-api</artifactId>
+        	<version>2.16.0</version>
         </dependency>
         <!-- This dependency includes the JPA EMPI Server -->
         <dependency>
@@ -528,5 +548,24 @@
                 </dependency>
             </dependencies>
         </profile>
+        <profile>
+    <id>owasp-dependency-check</id>
+    <build>
+      <plugins>
+        <plugin>
+          <groupId>org.owasp</groupId>
+          <artifactId>dependency-check-maven</artifactId>
+          <version>6.2.2</version>
+          <executions>
+            <execution>
+              <goals>
+                <goal>check</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </build>
+  </profile>
     </profiles>
 </project>
