@@ -114,6 +114,10 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 			    String patientId = getPatientFromToken(theRequest);
 			    return StringUtils.isEmpty(patientId) ? allowAll() : allowForClaimResourceId(theRequest,patientId);
 			  }
+			} else if (oAuth2Helper.hasClientRole(jwt, OAUTH_CLIENT_ID, OAUTH_USER_ROLE)) {
+			  String patientId = getPatientFromToken(theRequest);
+			  return ObjectUtils.isEmpty(patientId) ? allowAll() : allowForClaimResourceId(theRequest,patientId);
+			}
 		} catch (TokenExpiredException e) {
 			logger.info("Authorization failure - token has expired");
 		} catch (Exception e) {
