@@ -86,4 +86,10 @@ public class Application extends SpringBootServletInitializer {
     return registrationBean;
 
   }
+  
+  
+  @Bean 
+  public JpaRestfulServer jpaRestfulServer() {
+	  return new JpaRestfulServer();
+  }
 }

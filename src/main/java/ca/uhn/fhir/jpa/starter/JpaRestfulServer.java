@@ -5,7 +5,10 @@ import javax.servlet.ServletException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 
-import javax.servlet.ServletException;
+import ca.uhn.fhir.context.FhirVersionEnum;
+import ca.uhn.fhir.rest.server.interceptor.auth.AuthorizationInterceptor;
+import ca.uhn.fhir.rest.server.interceptor.auth.SearchNarrowingInterceptor;
+import ca.uhn.fhir.rest.server.interceptor.consent.ConsentInterceptor;
 
 @Import(AppProperties.class)
 public class JpaRestfulServer extends BaseJpaRestfulServer {
@@ -25,8 +28,16 @@ public class JpaRestfulServer extends BaseJpaRestfulServer {
   @Override
   protected void initialize() throws ServletException {
     super.initialize();
-
-    // Add your own customization here
+    if (FHIR_VERSION.equals(FhirVersionEnum.R4.name()) && Boolean.parseBoolean(OAUTH_ENABLED)) {
+    	CustomServerCapabilityStatementProviderR4 capabilityStatementProviderR4 = new CustomServerCapabilityStatementProviderR4(this);
+    	setServerConformanceProvider(capabilityStatementProviderR4);
+    }
+    SearchNarrowingInterceptor customSearchNarrowingInterceptor = new CustomSearchNarrowingInterceptor();
+    this.registerInterceptor(customSearchNarrowingInterceptor);
+    ConsentInterceptor consentInterceptor = new ConsentInterceptor(new CustomConsentService(super.daoRegistry));
+    this.registerInterceptor(consentInterceptor);
+    AuthorizationInterceptor authorizationInterceptor = new CustomAuthorizationInterceptor();
+    this.registerInterceptor(authorizationInterceptor);
   }
 
 }

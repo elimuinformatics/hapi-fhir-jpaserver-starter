@@ -342,7 +342,7 @@ You can use a custom property file that utilizes environment variables for many 
 -e OAUTH_ENABLED=<true/false> \
 -e OAUTH_URL=<oauth_server_url> \
 -e reuse_cached_search_results_millis=<milliseconds_value_to_reuse_cached_search_results> \
--e spring.config.location='</usr/local/tomcat/webapps/ROOT/WEB-INF/classes/application-custom.yaml>' \
+-e spring.config.location='<classpath:/application-custom.yaml>' \
 -e subscription.resthook.enabled=<true/false> \
 -e subscription.websocket.enabled=<true/false> \
 -e url_pattern=</fhir/*> \
