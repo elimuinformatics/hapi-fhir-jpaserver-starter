@@ -16,6 +16,9 @@ public class JpaRestfulServer extends BaseJpaRestfulServer {
 	private static final String FHIR_VERSION = System.getenv("fhir_version");
 	private static final String OAUTH_ENABLED = System.getenv("OAUTH_ENABLED");
 
+	private static final String FHIR_VERSION = System.getenv("fhir_version");
+	private static final String OAUTH_ENABLED = System.getenv("OAUTH_ENABLED");
+
   @Autowired
   AppProperties appProperties;
 

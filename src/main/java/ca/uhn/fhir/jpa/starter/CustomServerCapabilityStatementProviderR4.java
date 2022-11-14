@@ -39,21 +39,6 @@ public class CustomServerCapabilityStatementProviderR4 extends ServerCapabilityS
 	private CapabilityStatement capabilityStatement;
 	
 	
-
-	
-//	
-//	public CustomServerCapabilityStatementProviderR4(@Nonnull RestfulServer theRestfulServer, @Nonnull IFhirSystemDao<Bundle, Meta> theSystemDao, @Nonnull DaoConfig theDaoConfig, @Nonnull ISearchParamRegistry theSearchParamRegistry) {
-//		super(theRestfulServer, theSystemDao, theDaoConfig, theSearchParamRegistry);
-//	}
-//	
-//	
-//	@Override
-//	public CapabilityStatement getServerConformance(HttpServletRequest theRequest, RequestDetails theRequestDetails) {
-//		capabilityStatement = super.getServerConformance(theRequest, theRequestDetails);
-//		capabilityStatement.getRest().get(0).setSecurity(getSecurityComponent());
-//		return capabilityStatement;
-//	}
-	
 	@Override
 	public IBaseConformance getServerConformance(HttpServletRequest theRequest, RequestDetails theRequestDetails) {
 		// TODO Auto-generated method stub
