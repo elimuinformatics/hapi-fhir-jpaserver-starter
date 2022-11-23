@@ -7,20 +7,19 @@ services:
     ports:
       - '8080:8080'
     environment:
-      JAVA_OPTS: "-Dhapi.properties=/usr/local/tomcat/webapps/ROOT/WEB-INF/classes/hapi-r4.properties -Denable-web=false -Durl_pattern=/fhir/*"
-      HAPI_FHIR_VERSION: "R4"
-      HAPI_SERVER_ADDRESS: "https://<fhirDomain>/fhir/"
-      HAPI_DATASOURCE_DRIVER: "com.mysql.jdbc.Driver"
-      HAPI_DATASOURCE_URL: "jdbc:mysql://<mysqlHost>:<mysqlHostPort>/<dbName>"
-      HAPI_DATASOURCE_USERNAME: "<dbUserName>"
-      HAPI_DATASOURCE_PASSWORD: "<dbPassword>"
-      HAPI_HIBERNATE_DIALECT: "org.hibernate.dialect.MySQL5InnoDBDialect"
-      HAPI_SUBSCRIPTION_RESTHOOK_ENABLED: "true"
-      HAPI_SUBSCRIPTION_WEBSOCKET_ENABLED: "true"
-      API_KEY: "<apiKey>"
-      VALIDATE_API_KEY: "true"
-      HAPI_REUSE_CACHED_SEARCH_RESULTS_MILLIS: "0"
-      HAPI_DATASOURCE_MAX_POOL_SIZE: "100"
+      datasource.driver: 'com.mysql.jdbc.Driver'
+      datasource.password: 'admin'
+      datasource.url: 'jdbc:mysql://hapi-fhir-mysql/hapi'
+      datasource.username: 'admin'
+      fhir_version: 'DSTU2'
+      hapi.fhir.server_address: 'http://localhost:8080/fhir/'
+      hibernate.dialect: 'org.hibernate.dialect.MySQL5InnoDBDialect'
+      reuse_cached_search_results_millis: '0'
+      spring.config.location: 'classpath:/application-custom.yaml'
+      subscription.resthook.enabled: 'true'
+      subscription.websocket.enabled: 'true'
+      url_pattern: "/fhir/*"
+      enable-web: false
   hapi-fhir-mysql:
     image: mysql:latest
     container_name: hapi-fhir-mysql

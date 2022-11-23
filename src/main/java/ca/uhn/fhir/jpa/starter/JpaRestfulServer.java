@@ -34,8 +34,7 @@ public class JpaRestfulServer extends BaseJpaRestfulServer {
     
     /* Custom ServerConformanceProvider will be triggered when fhir version is R4 and Oauth is enabled. */
     if (FHIR_VERSION.equals(FhirVersionEnum.R4.name()) && Boolean.parseBoolean(OAUTH_ENABLED)) {
-    	CustomServerCapabilityStatementProviderR4 customCapabilityStatementProviderR4 = new CustomServerCapabilityStatementProviderR4(this, fhirSystemDao,
-    	          daoConfig, searchParamRegistry);
+    	CustomServerCapabilityStatementProviderR4 customCapabilityStatementProviderR4 = new CustomServerCapabilityStatementProviderR4(this);
     	setServerConformanceProvider(customCapabilityStatementProviderR4);
     }
     SearchNarrowingInterceptor customSearchNarrowingInterceptor = new CustomSearchNarrowingInterceptor();
