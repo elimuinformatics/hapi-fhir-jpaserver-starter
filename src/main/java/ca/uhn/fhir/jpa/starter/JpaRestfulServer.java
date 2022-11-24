@@ -10,8 +10,6 @@ import ca.uhn.fhir.rest.server.interceptor.auth.AuthorizationInterceptor;
 import ca.uhn.fhir.rest.server.interceptor.auth.SearchNarrowingInterceptor;
 import ca.uhn.fhir.rest.server.interceptor.consent.ConsentInterceptor;
 
-import javax.servlet.ServletException;
-
 @Import(AppProperties.class)
 public class JpaRestfulServer extends BaseJpaRestfulServer {
 	
