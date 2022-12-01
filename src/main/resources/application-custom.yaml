@@ -38,11 +38,11 @@ spring:
   ###    These settings will enable fulltext search with lucene or elastic
       hibernate.search.enabled: false
   ### lucene parameters
-      hibernate.search.backend.type: lucene
-      hibernate.search.backend.analysis.configurer: ca.uhn.fhir.jpa.search.HapiHSearchAnalysisConfigurers$HapiLuceneAnalysisConfigurer
-      hibernate.search.backend.directory.type: local-filesystem
-      hibernate.search.backend.directory.root: target/lucenefiles
-      hibernate.search.backend.lucene_version: lucene_current
+    #  hibernate.search.backend.type: lucene
+    #  hibernate.search.backend.analysis.configurer: ca.uhn.fhir.jpa.search.HapiHSearchAnalysisConfigurers$HapiLuceneAnalysisConfigurer
+    #  hibernate.search.backend.directory.type: local-filesystem
+    #  hibernate.search.backend.directory.root: target/lucenefiles
+    #  hibernate.search.backend.lucene_version: lucene_current
       hibernate.physical_naming_strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
   batch:
     job:
