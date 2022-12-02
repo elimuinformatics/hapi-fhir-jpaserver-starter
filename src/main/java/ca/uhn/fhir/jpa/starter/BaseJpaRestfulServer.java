@@ -1,5 +1,6 @@
 package ca.uhn.fhir.jpa.starter;
 
+import ca.uhn.fhir.batch2.jobs.reindex.ReindexProvider;
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.context.FhirVersionEnum;
 import ca.uhn.fhir.interceptor.api.IInterceptorBroadcaster;
@@ -321,6 +322,12 @@ public class BaseJpaRestfulServer extends RestfulServer {
     if (HapiProperties.getBulkExportEnabled()) {
       registerProvider(appCtx.getBean(BulkDataExportProvider.class));
     }
+
+    // valueSet Operations i.e $expand
+	 registerProvider(myValueSetOperationProvider);
+
+	 //reindex Provider $reindex
+	 registerProvider(reindexProvider);
 
     // Partitioning
     if (HapiProperties.getPartitioningMultitenancyEnabled()) {
