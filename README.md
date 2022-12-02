@@ -498,7 +498,7 @@ You can use a custom property file that utilizes environment variables for many 
 -e OAUTH_ENABLED=<true/false> \
 -e OAUTH_URL=<oauth_server_url> \
 -e reuse_cached_search_results_millis=<milliseconds_value_to_reuse_cached_search_results> \
--e spring.config.location='</usr/local/tomcat/webapps/ROOT/WEB-INF/classes/application-custom.yaml>' \
+-e spring.config.location='<classpath:/application-custom.yaml>' \
 -e subscription.resthook.enabled=<true/false> \
 -e subscription.websocket.enabled=<true/false> \
 -e url_pattern=</fhir/*> \
@@ -644,6 +644,8 @@ jpa:
     # Then comment all hibernate.search.backend.*
 ```
 
+Also, make sure you are not setting the Hibernate Dialect explicitly, see more details in the section about MySQL.
+
 ## Running hapi-fhir-jpaserver directly from IntelliJ as Spring Boot
 Make sure you run with the maven profile called ```boot``` and NOT also ```jetty```. Then you are ready to press debug the project directly without any extra Application Servers.
 
@@ -700,6 +702,7 @@ Set `hapi.fhir.mdm_enabled=true` in the [application.yaml](https://github.com/ha
 ## Enabling EMPI
 
 Set `empi.enabled=true` in the [hapi.properties](https://github.com/hapifhir/hapi-fhir-jpaserver-starter/blob/master/src/main/resources/hapi.properties) file to enable EMPI on this server.  The EMPI matching rules are configured in [empi-rules.json](https://github.com/hapifhir/hapi-fhir-jpaserver-starter/blob/master/src/main/resources/empi-rules.json).  The rules in this example file should be replaced with actual matching rules appropriate to your data. Note that EMPI relies on subscriptions, so for EMPI to work, subscriptions must be enabled. 
+
 
 ## Enabling EMPI
 

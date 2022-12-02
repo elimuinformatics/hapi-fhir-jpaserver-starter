@@ -575,6 +575,26 @@ public class AppProperties {
 		return local_base_urls;
 	}
 
+	public Integer getBundle_batch_pool_size() {
+		return this.bundle_batch_pool_size;
+	}
+
+	public void setBundle_batch_pool_size(Integer bundle_batch_pool_size) {
+		this.bundle_batch_pool_size = bundle_batch_pool_size;
+	}
+
+	public Integer getBundle_batch_pool_max_size() {
+		return bundle_batch_pool_max_size;
+	}
+
+	public void setBundle_batch_pool_max_size(Integer bundle_batch_pool_max_size) {
+		this.bundle_batch_pool_max_size = bundle_batch_pool_max_size;
+	}
+
+	public List<String> getLocal_base_urls() {
+		return local_base_urls;
+	}
+
 	public static class Cors {
     private Boolean allow_Credentials = true;
     private List<String> allowed_origin = ImmutableList.of("*");
