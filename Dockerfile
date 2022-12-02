@@ -1,5 +1,5 @@
-FROM maven:3.8.2-jdk-11-slim as build-hapi
-WORKDIR /usr/src/app/hapi-fhir-jpaserver-starter
+FROM maven:3.8-openjdk-17-slim as build-hapi
+WORKDIR /tmp/hapi-fhir-jpaserver-starter
 
 ARG OPENTELEMETRY_JAVA_AGENT_VERSION=1.17.0
 RUN curl -LSsO https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v${OPENTELEMETRY_JAVA_AGENT_VERSION}/opentelemetry-javaagent.jar

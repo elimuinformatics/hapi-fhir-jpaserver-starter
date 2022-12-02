@@ -44,7 +44,7 @@ public class CustomServerCapabilityStatementProviderR4 extends JpaConformancePro
 		capabilityStatement.getRest().get(0).setSecurity(getSecurityComponent());
 		return capabilityStatement;
 	}
-	
+
 	private static CapabilityStatementRestSecurityComponent getSecurityComponent() {
 		CapabilityStatementRestSecurityComponent security = new CapabilityStatementRestSecurityComponent();
 		List<Extension> extensions = new ArrayList<Extension>();
