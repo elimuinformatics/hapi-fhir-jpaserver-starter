@@ -19,8 +19,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
+
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
@@ -131,15 +131,6 @@ public class OAuth2Helper {
 		return null;
 	}
 
-	protected String getPatientReferenceFromToken(DecodedJWT jwt, String claimName) {
-		if (claimName != null) {
-			Claim claim = jwt.getClaim(claimName);
-			String patientRef = claim.as(String.class);
-			return patientRef;
-		}
-		return null;
-	}
-
 	protected boolean canBeInPatientCompartment(String resourceType) {
 		/*
 		 * For Bundle Request resourceType would be null.
@@ -156,6 +147,6 @@ public class OAuth2Helper {
 	
   public boolean isOAuthHeaderPresent(RequestDetails theRequest) {
     String token = theRequest.getHeader(HttpHeaders.AUTHORIZATION);
-    return (!StringUtils.isEmpty(token) && token.toUpperCase().contains(CustomAuthorizationInterceptor.getTokenPrefix()));
+    return (!ObjectUtils.isEmpty(token) && token.toUpperCase().contains(CustomAuthorizationInterceptor.getTokenPrefix()));
   }
 }

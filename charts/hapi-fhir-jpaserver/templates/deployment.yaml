@@ -121,11 +121,11 @@ spec:
             {{- if .Values.extraEnv }}
             {{ toYaml .Values.extraEnv | nindent 12 }}
             {{- end }}
-          volumeMounts:
-            - mountPath: /tmp
-              name: tmp-volume
-            - mountPath: /app/target
-              name: lucenefiles-volume
+          # volumeMounts:
+          #   - mountPath: /tmp
+          #     name: tmp-volume
+          #   - mountPath: /app/target
+          #     name: lucenefiles-volume
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

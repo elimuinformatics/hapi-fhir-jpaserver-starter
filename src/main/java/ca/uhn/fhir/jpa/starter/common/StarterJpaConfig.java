@@ -39,6 +39,10 @@ import ca.uhn.fhir.jpa.search.DatabaseBackedPagingProvider;
 import ca.uhn.fhir.jpa.search.IStaleSearchDeletingSvc;
 import ca.uhn.fhir.jpa.search.StaleSearchDeletingSvcImpl;
 import ca.uhn.fhir.jpa.starter.AppProperties;
+import ca.uhn.fhir.jpa.starter.CustomAuthorizationInterceptor;
+import ca.uhn.fhir.jpa.starter.CustomConsentService;
+import ca.uhn.fhir.jpa.starter.CustomSearchNarrowingInterceptor;
+import ca.uhn.fhir.jpa.starter.CustomServerCapabilityStatementProviderR4;
 import ca.uhn.fhir.jpa.starter.annotations.OnCorsPresent;
 import ca.uhn.fhir.jpa.starter.annotations.OnImplementationGuidesPresent;
 import ca.uhn.fhir.jpa.starter.common.validation.IRepositoryValidationInterceptorFactory;
@@ -54,6 +58,9 @@ import ca.uhn.fhir.rest.api.IResourceSupportedSvc;
 import ca.uhn.fhir.rest.openapi.OpenApiInterceptor;
 import ca.uhn.fhir.rest.server.*;
 import ca.uhn.fhir.rest.server.interceptor.*;
+import ca.uhn.fhir.rest.server.interceptor.auth.AuthorizationInterceptor;
+import ca.uhn.fhir.rest.server.interceptor.auth.SearchNarrowingInterceptor;
+import ca.uhn.fhir.rest.server.interceptor.consent.ConsentInterceptor;
 import ca.uhn.fhir.rest.server.interceptor.partition.RequestTenantPartitionInterceptor;
 import ca.uhn.fhir.rest.server.provider.ResourceProviderFactory;
 import ca.uhn.fhir.rest.server.tenant.UrlBaseTenantIdentificationStrategy;
@@ -84,6 +91,8 @@ import static ca.uhn.fhir.jpa.starter.common.validation.IRepositoryValidationInt
 	ThreadPoolFactoryConfig.class
 )
 public class StarterJpaConfig {
+	private static final String FHIR_VERSION = System.getenv("fhir_version");
+	private static final String OAUTH_ENABLED = System.getenv("OAUTH_ENABLED");
 
 	private static final org.slf4j.Logger ourLog = org.slf4j.LoggerFactory.getLogger(StarterJpaConfig.class);
 
@@ -247,6 +256,14 @@ public class StarterJpaConfig {
 		RestfulServer fhirServer = new RestfulServer(fhirSystemDao.getContext());
 
 
+	    SearchNarrowingInterceptor customSearchNarrowingInterceptor = new CustomSearchNarrowingInterceptor();
+	    fhirServer.registerInterceptor(customSearchNarrowingInterceptor);
+	    ConsentInterceptor consentInterceptor = new ConsentInterceptor(new CustomConsentService(daoRegistry));
+	    fhirServer.registerInterceptor(consentInterceptor);
+	    AuthorizationInterceptor authorizationInterceptor = new CustomAuthorizationInterceptor();
+	    fhirServer.registerInterceptor(authorizationInterceptor);
+	  
+		
 
 		List<String> supportedResourceTypes = appProperties.getSupported_resource_types();
 
@@ -432,8 +449,8 @@ public class StarterJpaConfig {
 			return confProvider;
 		} else if (fhirVersion == FhirVersionEnum.R4) {
 
-			JpaCapabilityStatementProvider confProvider = new JpaCapabilityStatementProvider(fhirServer, fhirSystemDao, daoConfig, searchParamRegistry, theValidationSupport);
-			confProvider.setImplementationDescription("HAPI FHIR R4 Server");
+			CustomServerCapabilityStatementProviderR4 confProvider = new CustomServerCapabilityStatementProviderR4(fhirServer,"HAPI FHIR R4 Server");
+			//confProvider.setImplementationDescription("HAPI FHIR R4 Server");
 			return confProvider;
 		} else if (fhirVersion == FhirVersionEnum.R4B) {
 

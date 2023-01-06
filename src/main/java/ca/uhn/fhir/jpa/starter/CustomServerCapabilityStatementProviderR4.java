@@ -3,45 +3,38 @@ package ca.uhn.fhir.jpa.starter;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.annotation.Nonnull;
 import javax.servlet.http.HttpServletRequest;
 
-import org.hl7.fhir.r4.model.Bundle;
+import org.hl7.fhir.instance.model.api.IBaseConformance;
 import org.hl7.fhir.r4.model.CapabilityStatement;
+import org.hl7.fhir.r4.model.CapabilityStatement.CapabilityStatementImplementationComponent;
 import org.hl7.fhir.r4.model.CapabilityStatement.CapabilityStatementRestSecurityComponent;
 import org.hl7.fhir.r4.model.Extension;
-import org.hl7.fhir.r4.model.Meta;
 import org.hl7.fhir.r4.model.UriType;
-import org.springframework.context.annotation.Configuration;
 
-import ca.uhn.fhir.jpa.api.config.DaoConfig;
-import ca.uhn.fhir.jpa.api.dao.IFhirSystemDao;
-import ca.uhn.fhir.jpa.provider.r4.JpaConformanceProviderR4;
-import ca.uhn.fhir.jpa.searchparam.registry.ISearchParamRegistry;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.server.RestfulServer;
+import ca.uhn.fhir.rest.server.provider.ServerCapabilityStatementProvider;
 
-@Configuration
-public class CustomServerCapabilityStatementProviderR4 extends JpaConformanceProviderR4 {
+
+public class CustomServerCapabilityStatementProviderR4 extends ServerCapabilityStatementProvider {
 
 	private static final String OAUTH_TOKEN_URL = System.getenv("OAUTH_TOKEN_URL");
 	private static final String OAUTH_MANAGE_URL = System.getenv("OAUTH_MANAGE_URL");
 	
 	private CapabilityStatement capabilityStatement;
-
-	public CustomServerCapabilityStatementProviderR4 () {
-		super();
-	}
+	private String myImplementationDescription;
 	
-	public CustomServerCapabilityStatementProviderR4(@Nonnull RestfulServer theRestfulServer, @Nonnull IFhirSystemDao<Bundle, Meta> theSystemDao, @Nonnull DaoConfig theDaoConfig, @Nonnull ISearchParamRegistry theSearchParamRegistry) {
-		super(theRestfulServer, theSystemDao, theDaoConfig, theSearchParamRegistry);
+	public CustomServerCapabilityStatementProviderR4(RestfulServer theServer,String myImplementationDescription) {
+		super(theServer);
+		this.myImplementationDescription = myImplementationDescription;
 	}
-	
 	
 	@Override
-	public CapabilityStatement getServerConformance(HttpServletRequest theRequest, RequestDetails theRequestDetails) {
-		capabilityStatement = super.getServerConformance(theRequest, theRequestDetails);
+	public IBaseConformance getServerConformance(HttpServletRequest theRequest, RequestDetails theRequestDetails) {
+		capabilityStatement =  (CapabilityStatement) super.getServerConformance(theRequest, theRequestDetails);
 		capabilityStatement.getRest().get(0).setSecurity(getSecurityComponent());
+		capabilityStatement.setImplementation(new CapabilityStatementImplementationComponent().setDescription(myImplementationDescription));
 		return capabilityStatement;
 	}
 
