@@ -82,159 +82,6 @@ volumes:
         external: true
 ```
 
-## Running via [Docker Hub](https://hub.docker.com/repository/docker/hapiproject/hapi)
-
-Each tagged/released version of `hapi-fhir-jpaserver` is built as a Docker image and published to Docker hub. To run the published Docker image from DockerHub:
-
-```
-docker pull hapiproject/hapi:latest
-docker run -p 8080:8080 hapiproject/hapi:tagname
-```
-
-This will run the docker image with the default configuration, mapping port 8080 from the container to port 8080 in the host. Once running, you can access `http://localhost:8080/hapi-fhir-jpaserver/fhir` in the browser to access the HAPI FHIR server's UI.
-
-If you change the mapped port, you need to change the configuration used by HAPI to have the correct `server_address` property/value.
-
-### Configuration via environment variables
-
-You can customize HAPI directly from the `run` command using environment variables. For example:
-
-`docker run -p 8090:8080 -e server_address=http://localhost:8090/hapi-fhir-jpaserver/fhir hapiproject/hapi:tagname`
-
-HAPI looks in the environment variables for properties in the [hapi.properties](https://github.com/hapifhir/hapi-fhir-jpaserver-starter/blob/master/src/main/resources/hapi.properties) file.
-
-### Configuration via overridden hapi.properties file
-
-You can customize HAPI by telling HAPI to look for the `hapi.properties` file in a different location:
-
-`docker run -p 8090:8080 -e hapi.properties=/some/directory/with/hapi.properties hapiproject/hapi:tagname`
-
-### Example docker-compose.yml
-
-```
-version: '3.7'
-services:
-  web:
-    image: "hapiproject/hapi:tagname"
-    ports:
-      - "8090:8080"
-    configs:
-      - source: hapi
-        target: /data/hapi/hapi.properties
-    volumes:
-      - hapi-data:/data/hapi
-    environment:
-      JAVA_OPTS: '-Dhapi.properties=/data/hapi/hapi.properties'
-configs:
-  hapi:
-     external: true
-volumes:
-    hapi-data:
-        external: true
-```
-
-## Running via [Docker Hub](https://hub.docker.com/repository/docker/hapiproject/hapi)
-
-Each tagged/released version of `hapi-fhir-jpaserver` is built as a Docker image and published to Docker hub. To run the published Docker image from DockerHub:
-
-```
-docker pull hapiproject/hapi:latest
-docker run -p 8080:8080 hapiproject/hapi:tagname
-```
-
-This will run the docker image with the default configuration, mapping port 8080 from the container to port 8080 in the host. Once running, you can access `http://localhost:8080/hapi-fhir-jpaserver/fhir` in the browser to access the HAPI FHIR server's UI.
-
-If you change the mapped port, you need to change the configuration used by HAPI to have the correct `server_address` property/value.
-
-### Configuration via environment variables
-
-You can customize HAPI directly from the `run` command using environment variables. For example:
-
-`docker run -p 8090:8080 -e server_address=http://localhost:8090/hapi-fhir-jpaserver/fhir hapiproject/hapi:tagname`
-
-HAPI looks in the environment variables for properties in the [hapi.properties](https://github.com/hapifhir/hapi-fhir-jpaserver-starter/blob/master/src/main/resources/hapi.properties) file.
-
-### Configuration via overridden hapi.properties file
-
-You can customize HAPI by telling HAPI to look for the `hapi.properties` file in a different location:
-
-`docker run -p 8090:8080 -e hapi.properties=/some/directory/with/hapi.properties hapiproject/hapi:tagname`
-
-### Example docker-compose.yml
-
-```
-version: '3.7'
-services:
-  web:
-    image: "hapiproject/hapi:tagname"
-    ports:
-      - "8090:8080"
-    configs:
-      - source: hapi
-        target: /data/hapi/hapi.properties
-    volumes:
-      - hapi-data:/data/hapi
-    environment:
-      JAVA_OPTS: '-Dhapi.properties=/data/hapi/hapi.properties'
-configs:
-  hapi:
-     external: true
-volumes:
-    hapi-data:
-        external: true
-```
-
-## Running via [Docker Hub](https://hub.docker.com/repository/docker/hapiproject/hapi)
-
-Each tagged/released version of `hapi-fhir-jpaserver` is built as a Docker image and published to Docker hub. To run the published Docker image from DockerHub:
-
-```
-docker pull hapiproject/hapi:latest
-docker run -p 8080:8080 hapiproject/hapi:tagname
-```
-
-This will run the docker image with the default configuration, mapping port 8080 from the container to port 8080 in the host. Once running, you can access `http://localhost:8080/hapi-fhir-jpaserver/fhir` in the browser to access the HAPI FHIR server's UI.
-
-If you change the mapped port, you need to change the configuration used by HAPI to have the correct `server_address` property/value.
-
-### Configuration via environment variables
-
-You can customize HAPI directly from the `run` command using environment variables. For example:
-
-`docker run -p 8090:8080 -e server_address=http://localhost:8090/hapi-fhir-jpaserver/fhir hapiproject/hapi:tagname`
-
-HAPI looks in the environment variables for properties in the [hapi.properties](https://github.com/hapifhir/hapi-fhir-jpaserver-starter/blob/master/src/main/resources/hapi.properties) file.
-
-### Configuration via overridden hapi.properties file
-
-You can customize HAPI by telling HAPI to look for the `hapi.properties` file in a different location:
-
-`docker run -p 8090:8080 -e hapi.properties=/some/directory/with/hapi.properties hapiproject/hapi:tagname`
-
-### Example docker-compose.yml
-
-```
-version: '3.7'
-services:
-  web:
-    image: "hapiproject/hapi:tagname"
-    ports:
-      - "8090:8080"
-    configs:
-      - source: hapi
-        target: /data/hapi/hapi.properties
-    volumes:
-      - hapi-data:/data/hapi
-    environment:
-      JAVA_OPTS: '-Dhapi.properties=/data/hapi/hapi.properties'
-configs:
-  hapi:
-     external: true
-volumes:
-    hapi-data:
-        external: true
-```
-
 ## Running locally
 
 The easiest way to run this server entirely depends on your environment requirements. At least, the following 4 ways are supported:
@@ -324,6 +171,7 @@ Server will then be accessible at http://localhost:8080/ and eg. http://localhos
           server_address: 'http://localhost:8080/fhir'
           refuse_to_fetch_third_party_urls: false
           fhir_version: R4
+
 ```
 You can use a custom property file that utilizes environment variables for many configuration properties. For example, to use the application-custom.yaml file. Replace with actual values.
 
@@ -348,8 +196,6 @@ You can use a custom property file that utilizes environment variables for many 
 -e url_pattern=</fhir/*> \
 hapi-fhir/hapi-fhir-jpaserver-starter:latest
 ```
-
-
 
 ## Configurations
 
@@ -550,23 +396,6 @@ Set `hapi.fhir.cql_enabled=true` in the [application.yaml](https://github.com/ha
 
 Set `hapi.fhir.mdm_enabled=true` in the [application.yaml](https://github.com/hapifhir/hapi-fhir-jpaserver-starter/blob/master/src/main/resources/application.yaml) file to enable MDM on this server.  The MDM matching rules are configured in [mdm-rules.json](https://github.com/hapifhir/hapi-fhir-jpaserver-starter/blob/master/src/main/resources/mdm-rules.json).  The rules in this example file should be replaced with actual matching rules appropriate to your data. Note that MDM relies on subscriptions, so for MDM to work, subscriptions must be enabled.
 
-## Enabling EMPI
-
-Set `empi.enabled=true` in the [hapi.properties](https://github.com/hapifhir/hapi-fhir-jpaserver-starter/blob/master/src/main/resources/hapi.properties) file to enable EMPI on this server.  The EMPI matching rules are configured in [empi-rules.json](https://github.com/hapifhir/hapi-fhir-jpaserver-starter/blob/master/src/main/resources/empi-rules.json).  The rules in this example file should be replaced with actual matching rules appropriate to your data. Note that EMPI relies on subscriptions, so for EMPI to work, subscriptions must be enabled. 
-
-
-## Enabling EMPI
-
-Set `empi.enabled=true` in the [hapi.properties](https://github.com/hapifhir/hapi-fhir-jpaserver-starter/blob/master/src/main/resources/hapi.properties) file to enable EMPI on this server.  The EMPI matching rules are configured in [empi-rules.json](https://github.com/hapifhir/hapi-fhir-jpaserver-starter/blob/master/src/main/resources/empi-rules.json).  The rules in this example file should be replaced with actual matching rules appropriate to your data. Note that EMPI relies on subscriptions, so for EMPI to work, subscriptions must be enabled. 
-
-## Enabling EMPI
-
-Set `empi.enabled=true` in the [hapi.properties](https://github.com/hapifhir/hapi-fhir-jpaserver-starter/blob/master/src/main/resources/hapi.properties) file to enable EMPI on this server.  The EMPI matching rules are configured in [empi-rules.json](https://github.com/hapifhir/hapi-fhir-jpaserver-starter/blob/master/src/main/resources/empi-rules.json).  The rules in this example file should be replaced with actual matching rules appropriate to your data. Note that EMPI relies on subscriptions, so for EMPI to work, subscriptions must be enabled. 
-
-## Enabling EMPI
-
-Set `empi.enabled=true` in the [hapi.properties](https://github.com/hapifhir/hapi-fhir-jpaserver-starter/blob/master/src/main/resources/hapi.properties) file to enable EMPI on this server.  The EMPI matching rules are configured in [empi-rules.json](https://github.com/hapifhir/hapi-fhir-jpaserver-starter/blob/master/src/main/resources/empi-rules.json).  The rules in this example file should be replaced with actual matching rules appropriate to your data. Note that EMPI relies on subscriptions, so for EMPI to work, subscriptions must be enabled. 
-
 ## Using Elasticsearch
 
 By default, the server will use embedded lucene indexes for terminology and fulltext indexing purposes. You can switch this to using lucene by editing the properties in [application.yaml](https://github.com/hapifhir/hapi-fhir-jpaserver-starter/blob/master/src/main/resources/application.yaml)
@@ -630,3 +459,4 @@ docker run --rm -it -p 8080:8080 \
 ```
 
 You can configure the agent using environment variables or Java system properties, see <https://opentelemetry.io/docs/instrumentation/java/automatic/agent-config/> for details.
+
