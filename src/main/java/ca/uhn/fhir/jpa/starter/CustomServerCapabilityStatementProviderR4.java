@@ -8,6 +8,7 @@ import javax.servlet.http.HttpServletRequest;
 
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.CapabilityStatement;
+import org.hl7.fhir.r4.model.CapabilityStatement.CapabilityStatementImplementationComponent;
 import org.hl7.fhir.r4.model.CapabilityStatement.CapabilityStatementRestSecurityComponent;
 import org.hl7.fhir.r4.model.Extension;
 import org.hl7.fhir.r4.model.Meta;
@@ -37,11 +38,16 @@ public class CustomServerCapabilityStatementProviderR4 extends JpaConformancePro
 		super(theRestfulServer, theSystemDao, theDaoConfig, theSearchParamRegistry);
 	}
 	
+	public CustomServerCapabilityStatementProviderR4(RestfulServer theServer,String myImplementationDescription) {
+		super(theServer);
+		this.myImplementationDescription = myImplementationDescription;
+	}
 	
 	@Override
 	public CapabilityStatement getServerConformance(HttpServletRequest theRequest, RequestDetails theRequestDetails) {
 		capabilityStatement = super.getServerConformance(theRequest, theRequestDetails);
 		capabilityStatement.getRest().get(0).setSecurity(getSecurityComponent());
+		capabilityStatement.setImplementation(new CapabilityStatementImplementationComponent().setDescription(myImplementationDescription));
 		return capabilityStatement;
 	}
 
