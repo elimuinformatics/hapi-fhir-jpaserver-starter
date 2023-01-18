@@ -324,6 +324,7 @@ Server will then be accessible at http://localhost:8080/ and eg. http://localhos
           server_address: 'http://localhost:8080/fhir'
           refuse_to_fetch_third_party_urls: false
           fhir_version: R4
+
 ```
 You can use a custom property file that utilizes environment variables for many configuration properties. For example, to use the application-custom.yaml file. Replace with actual values.
 
@@ -348,8 +349,6 @@ You can use a custom property file that utilizes environment variables for many 
 -e url_pattern=</fhir/*> \
 hapi-fhir/hapi-fhir-jpaserver-starter:latest
 ```
-
-
 
 ## Configurations
 
