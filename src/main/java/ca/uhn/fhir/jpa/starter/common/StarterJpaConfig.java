@@ -40,10 +40,13 @@ import ca.uhn.fhir.jpa.search.DatabaseBackedPagingProvider;
 import ca.uhn.fhir.jpa.search.IStaleSearchDeletingSvc;
 import ca.uhn.fhir.jpa.search.StaleSearchDeletingSvcImpl;
 import ca.uhn.fhir.jpa.starter.AppProperties;
+import ca.uhn.fhir.jpa.starter.CustomAuthorizationInterceptor;
+import ca.uhn.fhir.jpa.starter.CustomConsentService;
+import ca.uhn.fhir.jpa.starter.CustomSearchNarrowingInterceptor;
 import ca.uhn.fhir.jpa.starter.annotations.OnCorsPresent;
 import ca.uhn.fhir.jpa.starter.annotations.OnImplementationGuidesPresent;
 import ca.uhn.fhir.jpa.starter.common.validation.IRepositoryValidationInterceptorFactory;
-import ca.uhn.fhir.jpa.starter.ips.IpsConfigCondition;
+import ca.uhn.fhir.jpa.starter.interceptor.CapabilityStatementCustomizer;
 import ca.uhn.fhir.jpa.starter.util.EnvironmentHelper;
 import ca.uhn.fhir.jpa.subscription.util.SubscriptionDebugLogInterceptor;
 import ca.uhn.fhir.jpa.util.ResourceCountCache;
@@ -56,6 +59,7 @@ import ca.uhn.fhir.rest.api.IResourceSupportedSvc;
 import ca.uhn.fhir.rest.openapi.OpenApiInterceptor;
 import ca.uhn.fhir.rest.server.*;
 import ca.uhn.fhir.rest.server.interceptor.*;
+import ca.uhn.fhir.rest.server.interceptor.consent.ConsentInterceptor;
 import ca.uhn.fhir.rest.server.interceptor.partition.RequestTenantPartitionInterceptor;
 import ca.uhn.fhir.rest.server.provider.ResourceProviderFactory;
 import ca.uhn.fhir.rest.server.tenant.UrlBaseTenantIdentificationStrategy;
@@ -404,6 +408,15 @@ public class StarterJpaConfig {
 			fhirServer.setTenantIdentificationStrategy(new UrlBaseTenantIdentificationStrategy());
 			fhirServer.registerProviders(partitionManagementProvider);
 		}
+
+		// Support for OAuth2, Basic, and API_KEY authentication
+		if (appProperties.getOauth().getEnabled()) {
+			fhirServer.registerInterceptor(new CapabilityStatementCustomizer(appProperties));
+			fhirServer.registerInterceptor(new CustomSearchNarrowingInterceptor());
+			fhirServer.registerInterceptor(new ConsentInterceptor(new CustomConsentService(daoRegistry)));
+			fhirServer.registerInterceptor(new CustomAuthorizationInterceptor());
+		}
+
 		repositoryValidatingInterceptor.ifPresent(fhirServer::registerInterceptor);
 
 		// register custom interceptors
