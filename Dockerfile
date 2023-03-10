@@ -4,9 +4,6 @@ WORKDIR /usr/app//hapi-fhir-jpaserver-starter
 ARG OPENTELEMETRY_JAVA_AGENT_VERSION=1.17.0
 RUN curl -LSsO https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v${OPENTELEMETRY_JAVA_AGENT_VERSION}/opentelemetry-javaagent.jar
 
-ARG OPENTELEMETRY_JAVA_AGENT_VERSION=1.17.0
-RUN curl -LSsO https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v${OPENTELEMETRY_JAVA_AGENT_VERSION}/opentelemetry-javaagent.jar
-
 COPY pom.xml .
 COPY server.xml .
 RUN mvn -ntp dependency:go-offline
