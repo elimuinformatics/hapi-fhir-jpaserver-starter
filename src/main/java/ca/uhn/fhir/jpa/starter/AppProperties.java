@@ -105,6 +105,7 @@ public class AppProperties {
 
   private Oauth oauth = new Oauth();
 
+
 	public Boolean getOpenapi_enabled() {
 		return openapi_enabled;
 	}
