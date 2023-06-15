@@ -435,7 +435,11 @@ public class StarterJpaConfig {
 			fhirServer.setTenantIdentificationStrategy(new UrlBaseTenantIdentificationStrategy());
 			fhirServer.registerProviders(partitionManagementProvider);
 		}
+		repositoryValidatingInterceptor.ifPresent(fhirServer::registerInterceptor);
 
+		// register custom interceptors
+		registerCustomInterceptors(fhirServer, appContext, appProperties.getCustomInterceptorClasses());
+		
 		// Support for OAuth2, Basic, and API_KEY authentication
 		if (appProperties.getOauth().getEnabled()) {
 			fhirServer.registerInterceptor(new CapabilityStatementCustomizer(appProperties));
@@ -443,12 +447,6 @@ public class StarterJpaConfig {
 			fhirServer.registerInterceptor(new ConsentInterceptor(new CustomConsentService(daoRegistry)));
 			fhirServer.registerInterceptor(new CustomAuthorizationInterceptor());
 		}
-
-		repositoryValidatingInterceptor.ifPresent(fhirServer::registerInterceptor);
-
-		// register custom interceptors
-		registerCustomInterceptors(fhirServer, appContext, appProperties.getCustomInterceptorClasses());
-
 
 		//register the IPS Provider
 		if (!theIpsOperationProvider.isEmpty()) {
@@ -527,4 +525,3 @@ public class StarterJpaConfig {
 		}
 	}
 }
-
