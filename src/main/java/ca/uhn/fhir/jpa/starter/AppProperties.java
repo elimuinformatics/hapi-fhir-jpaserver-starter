@@ -553,7 +553,7 @@ public class AppProperties {
 	public boolean getInstall_transitive_ig_dependencies() {
 		return install_transitive_ig_dependencies;
 	}
-	
+
 	public void setInstall_transitive_ig_dependencies(boolean install_transitive_ig_dependencies) {
 		this.install_transitive_ig_dependencies = install_transitive_ig_dependencies;
 	}
@@ -564,26 +564,6 @@ public class AppProperties {
 	
 	public void setReload_existing_implementationguides(boolean reload_existing_implementationguides) {
 		this.reload_existing_implementationguides = reload_existing_implementationguides;
-	}
-
-	public Integer getBundle_batch_pool_size() {
-		return this.bundle_batch_pool_size;
-	}
-
-	public void setBundle_batch_pool_size(Integer bundle_batch_pool_size) {
-		this.bundle_batch_pool_size = bundle_batch_pool_size;
-	}
-
-	public Integer getBundle_batch_pool_max_size() {
-		return bundle_batch_pool_max_size;
-	}
-
-	public void setBundle_batch_pool_max_size(Integer bundle_batch_pool_max_size) {
-		this.bundle_batch_pool_max_size = bundle_batch_pool_max_size;
-	}
-
-	public List<String> getLocal_base_urls() {
-		return local_base_urls;
 	}
 
 	public Integer getBundle_batch_pool_size() {
