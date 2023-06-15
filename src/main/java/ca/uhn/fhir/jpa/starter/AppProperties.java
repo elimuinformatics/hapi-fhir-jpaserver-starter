@@ -566,6 +566,10 @@ public class AppProperties {
 		this.reload_existing_implementationguides = reload_existing_implementationguides;
 	}
 
+	public List<String> getLocal_base_urls() {
+		return local_base_urls;
+	}
+
 	public Integer getBundle_batch_pool_size() {
 		return this.bundle_batch_pool_size;
 	}
@@ -580,10 +584,6 @@ public class AppProperties {
 
 	public void setBundle_batch_pool_max_size(Integer bundle_batch_pool_max_size) {
 		this.bundle_batch_pool_max_size = bundle_batch_pool_max_size;
-	}
-
-	public List<String> getLocal_base_urls() {
-		return local_base_urls;
 	}
 
 	public static class Cors {

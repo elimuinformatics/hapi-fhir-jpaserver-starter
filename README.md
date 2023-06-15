@@ -439,9 +439,6 @@ jpa:
     # Then comment all hibernate.search.backend.*
 ```
 
-    # Then comment all hibernate.search.backend.*
-```
-
 ## Running hapi-fhir-jpaserver directly from IntelliJ as Spring Boot
 Make sure you run with the maven profile called ```boot``` and NOT also ```jetty```. Then you are ready to press debug the project directly without any extra Application Servers.
 
