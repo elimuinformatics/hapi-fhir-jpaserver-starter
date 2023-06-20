@@ -582,10 +582,10 @@ public class AppProperties {
 		this.bundle_batch_pool_max_size = bundle_batch_pool_max_size;
 	}
 
-  public List<String> getLocal_base_urls() {
+	public List<String> getLocal_base_urls() {
 		return local_base_urls;
 	}
-  
+
 	public static class Cors {
     private Boolean allow_Credentials = true;
     private List<String> allowed_origin = ImmutableList.of("*");

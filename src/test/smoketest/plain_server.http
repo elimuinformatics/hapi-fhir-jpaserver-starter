@@ -220,4 +220,4 @@ POST http://{{host}}/fhir/Patient/{{batch_patient_id}}/$validate
         const resourceType = response.body.resourceType;
         client.assert(resourceType === "OperationOutcome", "Expected 'OperationOutcome' but received '" + resourceType + "'");
     });
-%}
+ %}
