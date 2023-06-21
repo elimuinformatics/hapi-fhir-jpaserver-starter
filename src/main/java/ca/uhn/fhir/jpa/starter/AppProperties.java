@@ -553,7 +553,7 @@ public class AppProperties {
 	public boolean getInstall_transitive_ig_dependencies() {
 		return install_transitive_ig_dependencies;
 	}
-
+	
 	public void setInstall_transitive_ig_dependencies(boolean install_transitive_ig_dependencies) {
 		this.install_transitive_ig_dependencies = install_transitive_ig_dependencies;
 	}
