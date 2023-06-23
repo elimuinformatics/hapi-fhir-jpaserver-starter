@@ -58,6 +58,7 @@ public class WellknownEndpointHelper {
 
   private static JSONArray getResponseTypesSupported() {
     return new JSONArray()
+      .put("code")
       .put("token");
   }
 
