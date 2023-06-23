@@ -155,8 +155,8 @@ hapi:
       authorization_url: ${OAUTH_AUTHORIZATION_URL}
       grant_types_supported: ${OAUTH_GRANT_TYPES_SUPPORTED:authorization_code}
       token_url: ${OAUTH_TOKEN_URL}
-      # introspection_url: ${OAUTH_INTROSPECTION_URL}
-      # revocation_url: ${OAUTH_REVOCATION_URL}
+      introspection_url: ${OAUTH_INTROSPECTION_URL}
+      revocation_url: ${OAUTH_REVOCATION_URL}
       manage_url: ${OAUTH_MANAGE_URL}
 
     #    logger:
