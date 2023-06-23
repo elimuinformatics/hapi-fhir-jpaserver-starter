@@ -6,7 +6,6 @@ import org.json.JSONObject;
 
 public class WellknownEndpointHelper {
 
-  // Well Known JSON Keys
   private static final String ISSUER_KEY = "issuer";
   private static final String JWKS_ENDPOINT_KEY = "jwks_uri";
   private static final String AUTHORIZATION_ENDPOINT_KEY = "authorization_endpoint";
@@ -24,7 +23,7 @@ public class WellknownEndpointHelper {
 
   /**
    * Helper function to return metadata.
-   * See https://www.hl7.org/fhir/smart-app-launch/conformance.html#using-well-known
+   * See https://www.hl7.org/fhir/smart-app-launch/conformance.html#using-well-known.
    *
    * @return String representing json object of metadata returned at this url
    */
