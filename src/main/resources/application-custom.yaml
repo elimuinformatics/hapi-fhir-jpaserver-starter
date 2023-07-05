@@ -148,6 +148,8 @@ hapi:
 
     basic_auth:
       enabled: ${BASIC_AUTH_ENABLED:false}
+      username: ${BASIC_AUTH_USERNAME}
+      password: ${BASIC_AUTH_PASSWORD}
 
 #    logger:
     #      error_format: 'ERROR - ${requestVerb} ${requestUrl}'
