@@ -8,6 +8,8 @@ import org.hl7.fhir.r4.model.Base;
 import org.hl7.fhir.r4.model.IdType;
 import org.hl7.fhir.r4.model.Reference;
 import org.hl7.fhir.r4.model.Resource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
@@ -23,10 +25,8 @@ public class CustomConsentService implements IConsentService {
 
   private static final String OAUTH_CLAIM_NAME = "patient";
 
-  private static final org.slf4j.Logger log =
-      org.slf4j.LoggerFactory.getLogger(CustomConsentService.class);
+  private static final Logger logger = LoggerFactory.getLogger(CustomConsentService.class);
 
-  private OAuth2Helper oAuth2Helper = new OAuth2Helper();
   private DaoRegistry daoRegistry;
 
   public CustomConsentService() {}
@@ -40,11 +40,11 @@ public class CustomConsentService implements IConsentService {
       IConsentContextServices theContextServices) {
     /*
      * Returning authorized if there is no Authorization header present or if requested resource is
-     * present in Patient Compartment For both these cases all the consent logic is in authorization
+     * present in Patient Compartment. For both these cases all the consent logic is in authorization
      * intercepter rules.
      */
     if (ObjectUtils.isEmpty(theRequestDetails.getHeader("Authorization"))
-        || oAuth2Helper.canBeInPatientCompartment(theRequestDetails.getResourceName())) {
+        || OAuth2Helper.canBeInPatientCompartment(theRequestDetails.getResourceName())) {
       return ConsentOutcome.AUTHORIZED;
     }
     String patientId = getPatientFromToken(theRequestDetails);
@@ -89,7 +89,7 @@ public class CustomConsentService implements IConsentService {
      * intercepter rules
      */
     if (ObjectUtils.isEmpty(theRequestDetails.getHeader("Authorization"))
-        || oAuth2Helper.canBeInPatientCompartment(theRequestDetails.getResourceName())) {
+        || OAuth2Helper.canBeInPatientCompartment(theRequestDetails.getResourceName())) {
       return ConsentOutcome.AUTHORIZED;
     }
     String patientId = getPatientFromToken(theRequestDetails);
@@ -117,8 +117,7 @@ public class CustomConsentService implements IConsentService {
     return true;
   }
 
-  private boolean isReferanceValid(Resource theResource, String patientRef,
-      String refPropertyName) {
+  private boolean isReferanceValid(Resource theResource, String patientRef, String refPropertyName) {
     try {
       List<Base> refList = theResource.getNamedProperty(refPropertyName).getValues();
       for (Base ref : refList) {
@@ -128,8 +127,7 @@ public class CustomConsentService implements IConsentService {
       }
       return false;
     } catch (Exception e) {
-      log.error("Unable to find patient reference in " + theResource.getClass().getCanonicalName()
-          + " resource");
+      logger.error("Unable to find patient reference in {} resource", theResource.getClass().getCanonicalName());
       return false;
     }
   }
@@ -137,8 +135,7 @@ public class CustomConsentService implements IConsentService {
   private String getPatientFromToken(RequestDetails theRequestDetails) {
     String token = OAuth2Helper.getToken(theRequestDetails);
     DecodedJWT jwt = JWT.decode(token);
-    String patRefId = oAuth2Helper.getPatientReferenceFromToken(jwt, OAUTH_CLAIM_NAME);
-    return patRefId;
+    return OAuth2Helper.getPatientReferenceFromToken(jwt, OAUTH_CLAIM_NAME);
   }
 
   /*

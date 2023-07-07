@@ -14,6 +14,7 @@ import com.auth0.jwt.exceptions.TokenExpiredException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 
 import ca.uhn.fhir.interceptor.api.Interceptor;
+import ca.uhn.fhir.jpa.starter.util.ApiKeyHelper;
 import ca.uhn.fhir.rest.api.RequestTypeEnum;
 import ca.uhn.fhir.rest.api.RestOperationTypeEnum;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
@@ -24,11 +25,9 @@ import ca.uhn.fhir.rest.server.interceptor.auth.RuleBuilder;
 @Interceptor
 public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 	private static final Logger logger = LoggerFactory.getLogger(CustomAuthorizationInterceptor.class);
+	private static final String PATIENT = "Patient";
 	private AppProperties config;
-	private static final String APIKEY_HEADER = "x-api-key";
 	private static PublicKey publicKey = null;
-	private static OAuth2Helper oAuth2Helper = new OAuth2Helper();
-	private static BasicAuthHelper basicAuthHelper = new BasicAuthHelper();
 
 	public CustomAuthorizationInterceptor(AppProperties config) {
 		super();
@@ -43,26 +42,25 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 				return allowAll();
 			}
 
-			if (!isOAuthEnabled() && !isApiKeyEnabled() && !isBasicAuthEnabled()) {
-				logger.warn("APIKEY, basicAuth and OAuth2 authentication are disabled");
+			if (!isAuthorizationEnabled()) {
+				logger.warn("No authorization methods enabled");
 				return allowAll();
 			}
 
-			if (isOAuthEnabled() && oAuth2Helper.isOAuthHeaderPresent(theRequest)) {
-				logger.info("Authorizing via OAuth");
+			if (isOAuthEnabled() && OAuth2Helper.hasBearerToken(theRequest)) {
+				logger.info("Authorizing via OAuth2");
 				return authorizeOAuth(theRequest);
 			}
-
-			if (isApiKeyEnabled() && isApiKeyHeaderPresent(theRequest)) {
+			if (isApiKeyEnabled() && ApiKeyHelper.hasApiKey(theRequest)) {
 				logger.info("Authorizing via X-API-KEY");
 				return authorizeApiKey(theRequest);
 			}
-			if (isBasicAuthEnabled() && isBasicAuthHeaderPresent(theRequest)) {
+			if (isBasicAuthEnabled() && BasicAuthHelper.hasBasicCredentials(theRequest)) {
 				logger.info("Authorizing via basic auth");
 				return authorizeBasicAuth(theRequest);
 			}
 		} catch (Exception e) {
-			logger.warn("Unexpected authorization error :{}", e.getMessage());
+			logger.warn("Unexpected authorization error: {}", e.getMessage());
 			return denyAll();
 		}
 
@@ -78,49 +76,55 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 		return new RuleBuilder().allowAll().build();
 	}
 
-	private List<IAuthRule> authorizeOAuth(RequestDetails theRequest) throws Exception {
+	private boolean isAuthorizationEnabled() {
+		return isOAuthEnabled() || isApiKeyEnabled() || isBasicAuthEnabled();
+	}
+
+	private List<IAuthRule> authorizeOAuth(RequestDetails theRequest) {
 		String token = OAuth2Helper.getToken(theRequest);
+
 		try {
 			DecodedJWT jwt = JWT.decode(token);
-			String kid = oAuth2Helper.getJwtKeyId(token);
-			if (ObjectUtils.isEmpty(publicKey)) {
-				publicKey = oAuth2Helper.getJwtPublicKey(kid, config.getOauth().getJwks_url());
+			String kid = OAuth2Helper.getJwtKeyId(token);
+			if (publicKey == null) {
+				publicKey = OAuth2Helper.getJwtPublicKey(kid, config.getOauth().getJwks_url());
 			}
-			JWTVerifier verifier = oAuth2Helper.getJWTVerifier(jwt, publicKey);
+			JWTVerifier verifier = OAuth2Helper.getJWTVerifier(jwt, publicKey);
 			jwt = verifier.verify(token);
 			if (theRequest.getRequestType().equals(RequestTypeEnum.DELETE)) {
-			  if (oAuth2Helper.hasClientRole(jwt, getOAuthClientId(), getOAuthAdminRole())) {
+			  if (OAuth2Helper.hasClientRole(jwt, getOAuthClientId(), getOAuthAdminRole())) {
 			    return allowAll();
 			  }
-			} else if (oAuth2Helper.hasClientRole(jwt, getOAuthClientId(), getOAuthUserRole())) {
-			  String patientId = getPatientFromToken(jwt);
-			  return ObjectUtils.isEmpty(patientId) ? allowAll() : allowForClaimResourceId(theRequest,patientId);
+			} else if (OAuth2Helper.hasClientRole(jwt, getOAuthClientId(), getOAuthUserRole())) {
+				String patientId = OAuth2Helper.getPatientReferenceFromToken(jwt, "patient");
+				if (ObjectUtils.isEmpty(patientId)) {
+					return allowAll();
+				}
+			  	return allowForClaimResourceId(theRequest,patientId);
 			}
 		} catch (TokenExpiredException e) {
-			logger.warn("Authentication failure - token has expired");
+			logger.warn("OAuth2 authentication failure - token has expired");
 		} catch (Exception e) {
-			logger.warn("Unexpected exception verifying token: {}", e.getMessage());
+			logger.warn("Unexpected exception verifying OAuth2 token: {}", e.getMessage());
 		}
 
-		logger.warn("Authentication failure");
+		logger.warn("OAuth2 authentication failure");
 		return denyAll();
 	}
 
 	private List<IAuthRule> allowForClaimResourceId(RequestDetails theRequestDetails,String patientId) {
-		if (oAuth2Helper.canBeInPatientCompartment(theRequestDetails.getResourceName())) {
+		if (OAuth2Helper.canBeInPatientCompartment(theRequestDetails.getResourceName())) {
 			return new RuleBuilder()
-		            .allow().read().allResources().inCompartment("Patient", new IdType("Patient", patientId)).andThen()
-		            .allow().write().allResources().inCompartment("Patient", new IdType("Patient", patientId)).andThen()
-		            .allow().transaction().withAnyOperation().andApplyNormalRules().andThen()
-		            .allow().patch().allRequests().andThen()
-		            .denyAll()
-		            .build();
+				.allow().read().allResources()
+					.inCompartment(PATIENT, new IdType(PATIENT, patientId)).andThen()
+				.allow().write().allResources()
+					.inCompartment(PATIENT, new IdType(PATIENT, patientId)).andThen()
+				.allow().transaction().withAnyOperation().andApplyNormalRules().andThen()
+				.allow().patch().allRequests().andThen()
+				.denyAll()
+				.build();
 		}
 		return allowAll();
-	}
-
-	private String getPatientFromToken(DecodedJWT jwt) {
-		return oAuth2Helper.getPatientReferenceFromToken(jwt, "patient");
 	}
 
 	private boolean isOAuthEnabled() {
@@ -151,17 +155,8 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 		return config.getBasic_auth().getPassword();
 	}
 
-	private boolean isBasicAuthHeaderPresent(RequestDetails theRequest) {
-		return BasicAuthHelper.isBasicAuthHeaderPresent(theRequest);
-	}
-
 	private boolean isApiKeyEnabled() {
 		return config.getApikey().getEnabled();
-	}
-
-	private boolean isApiKeyHeaderPresent(RequestDetails theRequest) {
-		String apiKey = theRequest.getHeader(APIKEY_HEADER);
-		return (!ObjectUtils.isEmpty(apiKey));
 	}
 
 	private String getApiKey() {
@@ -169,28 +164,21 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 	}
 
 	private List<IAuthRule> authorizeApiKey(RequestDetails theRequest) {
-		String apiKey = theRequest.getHeader(APIKEY_HEADER);
-		if (ObjectUtils.isEmpty(apiKey)) {
-			logger.info("Authorization failure - missing X-API-KEY header");
-			return denyAll();
-		}
-
-		if (apiKey.equals(getApiKey())) {
+		if (ApiKeyHelper.isAuthorized(theRequest, getApiKey())) {
 			return allowAll();
 		}
 
-		logger.info("Authorization failure - invalid X-API-KEY header");
+		logger.warn("API key authorization failure - invalid X-API-KEY specified");
 		return denyAll();
 	}
 
 	private List<IAuthRule> authorizeBasicAuth(RequestDetails theRequest) {
 		String username = getBasicAuthUsername();
 		String password = getBasicAuthPassword();
-		String credentials = BasicAuthHelper.getCredentials(theRequest);
-		if (basicAuthHelper.isValid(username, password, credentials)) {
+		if (BasicAuthHelper.isAuthorized(theRequest, username, password)) {
 			return allowAll();
 		}
-		logger.info("Authorization failure - invalid credentials");
+		logger.warn("Basic authorization failed - invalid credentials specified");
 		return denyAll();
 	}
 }
