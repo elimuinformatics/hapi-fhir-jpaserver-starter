@@ -34,14 +34,17 @@ import ca.uhn.fhir.rest.api.server.RequestDetails;
 
 public class OAuth2Helper {
 	private static final Logger logger = LoggerFactory.getLogger(OAuth2Helper.class);
-	private static final String AUTHORIZATION_PREFIX = "BEARER ";
+
+	private static final String BEARER_PREFIX = "BEARER ";
+
+	private OAuth2Helper() {}
 
 	public static String getToken(RequestDetails theRequest) {
 		String auth = theRequest.getHeader(HttpHeaders.AUTHORIZATION);
-		return auth.substring(AUTHORIZATION_PREFIX.length());
+		return auth.substring(BEARER_PREFIX.length());
 	}
 
-	protected String getJwtKeyId(String token) {
+	public static String getJwtKeyId(String token) {
 		String tokenHeader = token.split("\\.")[0];
 		tokenHeader = new String(Base64.getDecoder().decode(tokenHeader.getBytes()));
 		String kid = null;
@@ -56,7 +59,7 @@ public class OAuth2Helper {
 
 	// The Base64 strings that come from a JWKS need some manipilation before they
 	// can be decoded, so we do that here
-	protected byte[] base64Decode(String base64) throws IOException {
+	public static byte[] base64Decode(String base64) throws IOException {
 		base64 = base64.replaceAll("-", "+");
 		base64 = base64.replaceAll("_", "/");
 		switch (base64.length() % 4) // Pad with trailing '='s
@@ -75,18 +78,15 @@ public class OAuth2Helper {
 		return Base64.getDecoder().decode(base64);
 	}
 
-	protected JWTVerifier getJWTVerifier(DecodedJWT jwt, PublicKey publicKey) {
+	public static JWTVerifier getJWTVerifier(DecodedJWT jwt, PublicKey publicKey) {
 		Algorithm algorithm = Algorithm.RSA256((RSAPublicKey) publicKey, null);
-		JWTVerifier verifier = JWT.require(algorithm).withIssuer(jwt.getIssuer()).build();
-		return verifier;
+		return JWT.require(algorithm).withIssuer(jwt.getIssuer()).build();
 	}
 
-	protected PublicKey getJwtPublicKey(String kid, String jwksUrl) {
+	public static PublicKey getJwtPublicKey(String kid, String jwksUrl) {
 		PublicKey publicKey = null;
 		RestTemplate restTemplate = new RestTemplate();
-		ResponseEntity<String> exchange = restTemplate.exchange(jwksUrl, HttpMethod.GET, null,
-				String.class);
-
+		ResponseEntity<String> exchange = restTemplate.exchange(jwksUrl, HttpMethod.GET, null, String.class);
 		String response = exchange.getBody();
 		try {
 			String modulusStr = null;
@@ -121,7 +121,7 @@ public class OAuth2Helper {
 		return publicKey;
 	}
 
-	protected Boolean hasClientRole(DecodedJWT jwt, String clientId, String userRole) {
+	public static Boolean hasClientRole(DecodedJWT jwt, String clientId, String userRole) {
 		Claim claim = jwt.getClaim("resource_access");
 		HashMap<String, HashMap<String, ArrayList<String>>> resources = claim.as(HashMap.class);
 		HashMap<String, ArrayList<String>> clientMap = resources.getOrDefault(clientId, new HashMap<String, ArrayList<String>>());
@@ -129,16 +129,15 @@ public class OAuth2Helper {
 		return roles.contains(userRole);
 	}
 
-	protected String getPatientReferenceFromToken(DecodedJWT jwt, String claimName) {
+	public static String getPatientReferenceFromToken(DecodedJWT jwt, String claimName) {
 		if (claimName != null) {
 			Claim claim = jwt.getClaim(claimName);
-			String patientRef = claim.as(String.class);
-			return patientRef;
+			return claim.as(String.class);
 		}
 		return null;
 	}
 
-	protected boolean canBeInPatientCompartment(String resourceType) {
+	public static boolean canBeInPatientCompartment(String resourceType) {
 		/*
 		 * For Bundle Request resourceType would be null.
 		 * For now we allow all bundle operations this will apply normal rules from authorization intercepter
@@ -152,8 +151,8 @@ public class OAuth2Helper {
 		return !compartmentList.isEmpty();
 	}
 
-  public boolean isOAuthHeaderPresent(RequestDetails theRequest) {
-    String token = theRequest.getHeader(HttpHeaders.AUTHORIZATION);
-    return (!ObjectUtils.isEmpty(token) && token.toUpperCase().startsWith(AUTHORIZATION_PREFIX));
-  }
+	public static boolean hasBearerToken(RequestDetails theRequest) {
+		String token = theRequest.getHeader(HttpHeaders.AUTHORIZATION);
+		return (!ObjectUtils.isEmpty(token) && token.toUpperCase().startsWith(BEARER_PREFIX));
+	}
 }
