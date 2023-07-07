@@ -7,21 +7,23 @@ import ca.uhn.fhir.rest.api.server.RequestDetails;
 
 public class BasicAuthHelper {
 
-  private static final String AUTHORIZATION_PREFIX = "BASIC ";
+  private static final String BASIC_PREFIX = "BASIC ";
 
-  public static String getCredentials(RequestDetails theRequest) {
-    String auth = theRequest.getHeader(HttpHeaders.AUTHORIZATION);
-    return auth.substring(AUTHORIZATION_PREFIX.length());
+  private BasicAuthHelper() {}
+
+  public static boolean isAuthorized(RequestDetails theRequest, String username, String password) {
+    String credentials = theRequest
+      .getHeader(HttpHeaders.AUTHORIZATION)
+      .substring(BASIC_PREFIX.length());
+    String encodedCredentials = Base64
+      .getEncoder()
+      .encodeToString((username + ":" + password)
+      .getBytes());
+    return encodedCredentials.equals(credentials);
   }
 
-  public boolean isValid(String basicAuthUsername, String basicAuthPass, String basicAuthToken) {
-    String unEncodedUsernamePass = basicAuthUsername + ":" + basicAuthPass;
-    String encodedUsernamePass = Base64.getEncoder().encodeToString(unEncodedUsernamePass.getBytes());
-    return encodedUsernamePass.equals(basicAuthToken);
-  }
-
-	public static boolean isBasicAuthHeaderPresent(RequestDetails theRequest) {
+	public static boolean hasBasicCredentials(RequestDetails theRequest) {
 		String auth = theRequest.getHeader(HttpHeaders.AUTHORIZATION);
-		return (!ObjectUtils.isEmpty(auth) && auth.toUpperCase().startsWith(AUTHORIZATION_PREFIX));
+		return (!ObjectUtils.isEmpty(auth) && auth.toUpperCase().startsWith(BASIC_PREFIX));
 	}
 }
