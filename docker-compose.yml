@@ -17,6 +17,8 @@ services:
       reuse_cached_search_results_millis: 0
       subscription.resthook.enabled: true
       subscription.websocket.enabled: true
+      APIKEY_ENABLED: false
+      APIKEY: abc123
       BASIC_AUTH_ENABLED: false
       BASIC_AUTH_USERNAME: "admin"
       BASIC_AUTH_PASSWORD: "admin"

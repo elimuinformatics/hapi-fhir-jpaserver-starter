@@ -171,6 +171,10 @@ hapi:
       username: ${BASIC_AUTH_USERNAME}
       password: ${BASIC_AUTH_PASSWORD}
 
+    apikey:
+      enabled: ${APIKEY_ENABLED:false}
+      key: ${APIKEY}
+
     #    logger:
     #      error_format: 'ERROR - ${requestVerb} ${requestUrl}'
     #      format: >-
