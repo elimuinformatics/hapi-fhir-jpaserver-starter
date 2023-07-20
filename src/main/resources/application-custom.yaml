@@ -25,6 +25,9 @@ spring:
     # database connection pool size
     hikari:
       maximum-pool-size: 25
+      connection-test-query: SELECT 1
+      connection-timeout: 60000
+      
   jpa:
     properties:
       hibernate.format_sql: false
