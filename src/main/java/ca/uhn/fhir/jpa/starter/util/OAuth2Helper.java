@@ -1,4 +1,4 @@
-package ca.uhn.fhir.jpa.starter;
+package ca.uhn.fhir.jpa.starter.util;
 
 import java.math.BigInteger;
 import java.security.KeyFactory;
@@ -46,6 +46,10 @@ public class OAuth2Helper {
 
 	public static void verify(DecodedJWT jwt, String jwksUrl) throws IllegalArgumentException,
 			NoSuchAlgorithmException, InvalidKeySpecException, TokenExpiredException, JWTVerificationException {
+		// TODO: storage of cached public keys need to be a map by kid. there may be more than 1.
+		// TODO: Add an expiration for the caching of the key
+		// 	// TODO: JwkProvider??
+		// 	// https://github.com/auth0/java-jwt/blob/master/EXAMPLES.md
 		if (publicKey == null) {
 			publicKey = getKey(jwt.getKeyId(), jwksUrl);
 		}
@@ -79,7 +83,7 @@ public class OAuth2Helper {
 
 	public static List<String> getClientRoles(DecodedJWT jwt, String clientId) {
 		Claim claim = jwt.getClaim("resource_access");
-		HashMap<String, HashMap<String, ArrayList<String>>> resources = claim.as(HashMap.class);
+		HashMap<String, HashMap<String, ArrayList<String>>> resources = claim.as(HashMap.class); // TODO: use asMap() instead?
 		HashMap<String, ArrayList<String>> clientMap = resources.getOrDefault(clientId, new HashMap<String, ArrayList<String>>());
 		return clientMap.getOrDefault("roles", new ArrayList<String>());
 	}

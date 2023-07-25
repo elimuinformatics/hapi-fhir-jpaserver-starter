@@ -1,4 +1,4 @@
-package ca.uhn.fhir.jpa.starter;
+package ca.uhn.fhir.jpa.starter.interceptor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -6,6 +6,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Strings;
 
 import ca.uhn.fhir.interceptor.api.Interceptor;
+import ca.uhn.fhir.jpa.starter.AppProperties;
+import ca.uhn.fhir.jpa.starter.util.OAuth2Helper;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.server.interceptor.auth.AuthorizedList;
 import ca.uhn.fhir.rest.server.interceptor.auth.SearchNarrowingInterceptor;

@@ -1,4 +1,4 @@
-package ca.uhn.fhir.jpa.starter;
+package ca.uhn.fhir.jpa.starter.interceptor;
 
 import java.security.GeneralSecurityException;
 import java.util.List;
@@ -12,7 +12,9 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.google.common.base.Strings;
 
 import ca.uhn.fhir.interceptor.api.Interceptor;
+import ca.uhn.fhir.jpa.starter.AppProperties;
 import ca.uhn.fhir.jpa.starter.util.ApiKeyHelper;
+import ca.uhn.fhir.jpa.starter.util.OAuth2Helper;
 import ca.uhn.fhir.rest.api.Constants;
 import ca.uhn.fhir.rest.api.RequestTypeEnum;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
