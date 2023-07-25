@@ -121,23 +121,23 @@ public class OAuth2Helper {
 		String alg = jwt.getAlgorithm();
 		switch (alg) {
 			case "HS256":
-				return Algorithm.HMAC256((String) publicKey);
+				return Algorithm.HMAC256((String)publicKey);
 			case "HS384":
-				return Algorithm.HMAC384((String) publicKey);
+				return Algorithm.HMAC384((String)publicKey);
 			case "HS512":
-				return Algorithm.HMAC512((String) publicKey);
+				return Algorithm.HMAC512((String)publicKey);
 			case "RS256":
-				return Algorithm.RSA256((RSAPublicKey) publicKey, null);
+				return Algorithm.RSA256((RSAPublicKey)publicKey, null);
 			case "RS384":
-				return Algorithm.RSA384((RSAPublicKey) publicKey, null);
+				return Algorithm.RSA384((RSAPublicKey)publicKey, null);
 			case "RS512":
-				return Algorithm.RSA512((RSAPublicKey) publicKey, null);
+				return Algorithm.RSA512((RSAPublicKey)publicKey, null);
 			case "ES256":
-				return Algorithm.ECDSA256((ECPublicKey) publicKey, null);
+				return Algorithm.ECDSA256((ECPublicKey)publicKey, null);
 			case "ES384":
-				return Algorithm.ECDSA384((ECPublicKey) publicKey, null);
+				return Algorithm.ECDSA384((ECPublicKey)publicKey, null);
 			case "ES512":
-				return Algorithm.ECDSA512((ECPublicKey) publicKey, null);
+				return Algorithm.ECDSA512((ECPublicKey)publicKey, null);
 			case "PS256":
 			case "PS384":
 			default:
