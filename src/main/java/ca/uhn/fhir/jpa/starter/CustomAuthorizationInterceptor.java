@@ -49,9 +49,6 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 			if (isUsingApiKey(theRequest)) {
 				return authorizeApiKey(theRequest);
 			}
-			if (isUsingBasicAuth(theRequest)) {
-				return authorizeBasicAuth(theRequest);
-			}
 			logger.warn("Authorization failed - no authorization supplied");
 		} catch (AuthenticationException e) {
 			throw e;
@@ -63,7 +60,7 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 	}
 
 	private boolean isAnyEnabled() {
-		return isOAuthEnabled() || isApiKeyEnabled() || isBasicAuthEnabled();
+		return isOAuthEnabled() || isApiKeyEnabled();
 	}
 
 	private boolean isUsingOAuth(RequestDetails theRequest) {
@@ -72,10 +69,6 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 
 	private boolean isUsingApiKey(RequestDetails theRequest) {
 		return isApiKeyEnabled() && ApiKeyHelper.hasApiKey(theRequest);
-	}
-
-	private boolean isUsingBasicAuth(RequestDetails theRequest) {
-		return isBasicAuthEnabled() && BasicAuthHelper.hasBasicCredentials(theRequest);
 	}
 
 	private List<IAuthRule> authorizedRule() {
@@ -163,18 +156,6 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 		return config.getOauth().getAdmin_role();
 	}
 
-	private boolean isBasicAuthEnabled() {
-		return config.getBasic_auth().getEnabled();
-	}
-
-	private String getBasicAuthUsername() {
-		return config.getBasic_auth().getUsername();
-	}
-
-	private String getBasicAuthPassword() {
-		return config.getBasic_auth().getPassword();
-	}
-
 	private boolean isApiKeyEnabled() {
 		return config.getApikey().getEnabled();
 	}
@@ -191,16 +172,5 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 
 		logger.warn("API key authorization failure - invalid x-api-key specified");
 		throw new AuthenticationException("Invalid x-api-key");
-	}
-
-	private List<IAuthRule> authorizeBasicAuth(RequestDetails theRequest) throws AuthenticationException {
-		logger.info("Authorizing via Basic Auth");
-		String username = getBasicAuthUsername();
-		String password = getBasicAuthPassword();
-		if (BasicAuthHelper.isAuthorized(theRequest, username, password)) {
-			return authorizedRule();
-		}
-		logger.warn("Basic authorization failed - invalid credentials specified");
-		throw new AuthenticationException("Invalid authorization header");
 	}
 }

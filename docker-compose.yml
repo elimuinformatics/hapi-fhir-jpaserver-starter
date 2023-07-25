@@ -19,9 +19,6 @@ services:
       subscription.websocket.enabled: true
       APIKEY_ENABLED: false
       APIKEY: abc123
-      BASIC_AUTH_ENABLED: false
-      BASIC_AUTH_USERNAME: "admin"
-      BASIC_AUTH_PASSWORD: "admin"
       OAUTH_ENABLED: true
       OAUTH_CLIENT_ID: fhir4-api
       OAUTH_USER_ROLE: fhir4-user

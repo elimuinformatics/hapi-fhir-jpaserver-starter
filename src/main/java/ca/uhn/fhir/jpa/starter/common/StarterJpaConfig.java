@@ -412,7 +412,7 @@ public class StarterJpaConfig {
 			fhirServer.registerProviders(partitionManagementProvider);
 		}
 
-		// Support for OAuth2, Basic, and API_KEY authentication
+		// Support for OAuth2 and API_KEY authentication
 		if (appProperties.getOauth().getEnabled()) {
 			fhirServer.registerInterceptor(new CapabilityStatementCustomizer(appProperties));
 			fhirServer.registerInterceptor(new CustomSearchNarrowingInterceptor(appProperties));
@@ -423,8 +423,7 @@ public class StarterJpaConfig {
 			}
 		}
 		if (appProperties.getOauth().getEnabled()
-				|| appProperties.getApikey().getEnabled()
-				|| appProperties.getBasic_auth().getEnabled()) {
+				|| appProperties.getApikey().getEnabled()) {
 			fhirServer.registerInterceptor(new CustomAuthorizationInterceptor(appProperties));
 		}
 
