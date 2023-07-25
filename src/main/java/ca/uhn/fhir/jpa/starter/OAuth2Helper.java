@@ -1,41 +1,41 @@
 package ca.uhn.fhir.jpa.starter;
 
-import java.io.IOException;
 import java.math.BigInteger;
 import java.security.KeyFactory;
-import java.security.PublicKey;
+import java.security.NoSuchAlgorithmException;
+import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
+
 import org.apache.commons.lang3.ObjectUtils;
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
+import com.auth0.jwt.exceptions.TokenExpiredException;
 import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
+
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.context.RuntimeResourceDefinition;
 import ca.uhn.fhir.context.RuntimeSearchParam;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 
 public class OAuth2Helper {
-	private static final Logger logger = LoggerFactory.getLogger(OAuth2Helper.class);
-
 	private static final String BEARER_PREFIX = "BEARER ";
+	private static RSAPublicKey publicKey = null;
 
 	private OAuth2Helper() {}
 
@@ -44,115 +44,100 @@ public class OAuth2Helper {
 		return auth.substring(BEARER_PREFIX.length());
 	}
 
-	public static String getJwtKeyId(String token) {
-		String tokenHeader = token.split("\\.")[0];
-		tokenHeader = new String(Base64.getDecoder().decode(tokenHeader.getBytes()));
-		String kid = null;
-		try {
-			JSONObject obj = new JSONObject(tokenHeader);
-			kid = obj.getString("kid");
-		} catch (JSONException e) {
-			logger.error("Unexpected exception parsing JWT token", e);
+	public static void verify(DecodedJWT jwt, String jwksUrl) throws IllegalArgumentException,
+			NoSuchAlgorithmException, InvalidKeySpecException, TokenExpiredException, JWTVerificationException {
+		if (publicKey == null) {
+			publicKey = getKey(jwt.getKeyId(), jwksUrl);
 		}
-		return kid;
+		Algorithm algorithm = getAlgorithm(jwt, publicKey);
+		JWTVerifier verifier = JWT.require(algorithm).build();
+		verifier.verify(jwt);
 	}
 
-	// The Base64 strings that come from a JWKS need some manipilation before they
-	// can be decoded, so we do that here
-	public static byte[] base64Decode(String base64) throws IOException {
-		base64 = base64.replaceAll("-", "+");
-		base64 = base64.replaceAll("_", "/");
-		switch (base64.length() % 4) // Pad with trailing '='s
-		{
-		case 0:
-			break; // No pad chars in this case
-		case 2:
-			base64 += "==";
-			break; // Two pad chars
-		case 3:
-			base64 += "=";
-			break; // One pad char
-		default:
-			throw new RuntimeException("Illegal base64url string!");
-		}
-		return Base64.getDecoder().decode(base64);
-	}
-
-	public static JWTVerifier getJWTVerifier(DecodedJWT jwt, PublicKey publicKey) {
-		Algorithm algorithm = Algorithm.RSA256((RSAPublicKey) publicKey, null);
-		return JWT.require(algorithm).withIssuer(jwt.getIssuer()).build();
-	}
-
-	public static PublicKey getJwtPublicKey(String kid, String jwksUrl) {
-		PublicKey publicKey = null;
+	public static RSAPublicKey getKey(String kid, String jwksUrl) throws RestClientException,
+			NoSuchAlgorithmException, InvalidKeySpecException {
 		RestTemplate restTemplate = new RestTemplate();
-		ResponseEntity<String> exchange = restTemplate.exchange(jwksUrl, HttpMethod.GET, null, String.class);
-		String response = exchange.getBody();
-		try {
-			String modulusStr = null;
-			String exponentStr = null;
-			JSONObject obj = new JSONObject(response);
-			JSONArray keylist = obj.getJSONArray("keys");
-			for (int i = 0; i < keylist.length(); i++) {
-				JSONObject key = keylist.getJSONObject(i);
-				String id = key.getString("kid");
-				if (kid.equals(id)) {
-					modulusStr = key.getString("n");
-					exponentStr = key.getString("e");
-				}
+		ResponseEntity<String> response = restTemplate.getForEntity(jwksUrl, String.class);
+		String rawE = null;
+		String rawN = null;
+		JSONObject jwks = new JSONObject(response.getBody());
+		JSONArray keys = jwks.getJSONArray("keys");
+		for (int i = 0; i < keys.length(); i++) {
+			JSONObject key = keys.getJSONObject(i);
+			if (kid.equals(key.get("kid"))) {
+				rawE = key.getString("e");
+				rawN = key.getString("n");
+				break;
 			}
-
-			BigInteger modulus = new BigInteger(1, base64Decode(modulusStr));
-			BigInteger publicExponent = new BigInteger(1, base64Decode(exponentStr));
-
-			try {
-				KeyFactory kf = KeyFactory.getInstance("RSA");
-				return kf.generatePublic(new RSAPublicKeySpec(modulus, publicExponent));
-			} catch (Exception e) {
-				logger.error("Unexpected error generating OAuth2 public key", e);
-				throw new RuntimeException(e);
-			}
-		} catch (JWTVerificationException e) {
-			logger.warn("Authorization failed - unable to verify token");
-		} catch (Exception e) {
-			logger.error("Unexpected error verifying OAuth2 token", e);
 		}
-
-		return publicKey;
+		BigInteger e = new BigInteger(1, Base64.getUrlDecoder().decode(rawE));
+		BigInteger n = new BigInteger(1, Base64.getUrlDecoder().decode(rawN));
+		KeyFactory kf = KeyFactory.getInstance("RSA");
+		RSAPublicKeySpec publicKeySpec = new RSAPublicKeySpec(n, e);
+		return (RSAPublicKey)kf.generatePublic(publicKeySpec);
 	}
 
-	public static Boolean hasClientRole(DecodedJWT jwt, String clientId, String userRole) {
+	public static List<String> getClientRoles(DecodedJWT jwt, String clientId) {
 		Claim claim = jwt.getClaim("resource_access");
 		HashMap<String, HashMap<String, ArrayList<String>>> resources = claim.as(HashMap.class);
 		HashMap<String, ArrayList<String>> clientMap = resources.getOrDefault(clientId, new HashMap<String, ArrayList<String>>());
-		ArrayList<String> roles = clientMap.getOrDefault("roles", new ArrayList<String>());
-		return roles.contains(userRole);
+		return clientMap.getOrDefault("roles", new ArrayList<String>());
 	}
 
-	public static String getPatientReferenceFromToken(DecodedJWT jwt, String claimName) {
-		if (claimName != null) {
-			Claim claim = jwt.getClaim(claimName);
-			return claim.as(String.class);
-		}
-		return null;
+	public static String getClaimAsString(RequestDetails theRequest, String name) {
+		String token = getToken(theRequest);
+		DecodedJWT jwt = JWT.decode(token);
+		return getClaimAsString(jwt, name);
 	}
 
-	public static boolean canBeInPatientCompartment(String resourceType) {
+	public static String getClaimAsString(DecodedJWT jwt, String name) {
+		return jwt.getClaim(name).asString();
+	}
+
+	public static boolean canBeInPatientCompartment(String resourceName) {
 		/*
 		 * For Bundle Request resourceType would be null.
 		 * For now we allow all bundle operations this will apply normal rules from authorization intercepter
 		 */
-		if (ObjectUtils.isEmpty(resourceType)) {
+		if (ObjectUtils.isEmpty(resourceName)) {
 			return true;
 		}
 		FhirContext ctx = FhirContext.forR4();
-		RuntimeResourceDefinition data = ctx.getResourceDefinition(resourceType);
+		RuntimeResourceDefinition data = ctx.getResourceDefinition(resourceName);
 		List<RuntimeSearchParam> compartmentList = data.getSearchParamsForCompartmentName("Patient");
 		return !compartmentList.isEmpty();
 	}
 
-	public static boolean hasBearerToken(RequestDetails theRequest) {
+	public static boolean hasToken(RequestDetails theRequest) {
 		String token = theRequest.getHeader(HttpHeaders.AUTHORIZATION);
 		return (!ObjectUtils.isEmpty(token) && token.toUpperCase().startsWith(BEARER_PREFIX));
+	}
+
+	private static Algorithm getAlgorithm(DecodedJWT jwt, Object publicKey) throws NoSuchAlgorithmException {
+		String alg = jwt.getAlgorithm();
+		switch (alg) {
+			case "HS256":
+				return Algorithm.HMAC256((String) publicKey);
+			case "HS384":
+				return Algorithm.HMAC384((String) publicKey);
+			case "HS512":
+				return Algorithm.HMAC512((String) publicKey);
+			case "RS256":
+				return Algorithm.RSA256((RSAPublicKey) publicKey, null);
+			case "RS384":
+				return Algorithm.RSA384((RSAPublicKey) publicKey, null);
+			case "RS512":
+				return Algorithm.RSA512((RSAPublicKey) publicKey, null);
+			case "ES256":
+				return Algorithm.ECDSA256((ECPublicKey) publicKey, null);
+			case "ES384":
+				return Algorithm.ECDSA384((ECPublicKey) publicKey, null);
+			case "ES512":
+				return Algorithm.ECDSA512((ECPublicKey) publicKey, null);
+			case "PS256":
+			case "PS384":
+			default:
+				throw new NoSuchAlgorithmException("Algorithm is not supported by this library.");
+		}
 	}
 }

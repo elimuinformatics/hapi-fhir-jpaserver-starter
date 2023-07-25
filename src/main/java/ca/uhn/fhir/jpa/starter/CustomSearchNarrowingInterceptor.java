@@ -1,7 +1,10 @@
 package ca.uhn.fhir.jpa.starter;
 
-import com.auth0.jwt.JWT;
-import com.auth0.jwt.interfaces.DecodedJWT;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Strings;
+
 import ca.uhn.fhir.interceptor.api.Interceptor;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.server.interceptor.auth.AuthorizedList;
@@ -9,28 +12,32 @@ import ca.uhn.fhir.rest.server.interceptor.auth.SearchNarrowingInterceptor;
 
 @Interceptor
 public class CustomSearchNarrowingInterceptor extends SearchNarrowingInterceptor {
+  private static final Logger logger = LoggerFactory.getLogger(CustomSearchNarrowingInterceptor.class);
+  private final AppProperties config;
 
-  private static final String OAUTH_CLAIM_NAME = "patient";
+	public CustomSearchNarrowingInterceptor(AppProperties config) {
+		super();
+		this.config = config;
+	}
 
   @Override
   protected AuthorizedList buildAuthorizedList(RequestDetails theRequestDetails) {
-    String patientId = getPatientFromToken(theRequestDetails);
-    if (patientId != null) {
-      String patientRef = "Patient/" + patientId;
-      return new AuthorizedList().addCompartment(patientRef);
+    if (isUsingOAuth(theRequestDetails)) {
+      String patientId = OAuth2Helper.getClaimAsString(theRequestDetails, "patient");
+      if (!Strings.isNullOrEmpty(patientId)) {
+        logger.debug("Patient claim specified in authorization token; adding patient compartment to narrow search");
+        String compartment = "Patient/" + patientId;
+        return new AuthorizedList().addCompartment(compartment);
+      }
     }
     return new AuthorizedList();
   }
 
-  private String getPatientFromToken(RequestDetails theRequestDetails) {
-    if (OAuth2Helper.hasBearerToken(theRequestDetails)) {
-      String token = OAuth2Helper.getToken(theRequestDetails);
-      if (token != null) {
-        DecodedJWT jwt = JWT.decode(token);
-        return OAuth2Helper.getPatientReferenceFromToken(jwt, OAUTH_CLAIM_NAME);
-      }
-    }
-    return null;
-  }
+	private boolean isUsingOAuth(RequestDetails theRequest) {
+		return isOAuthEnabled() && OAuth2Helper.hasToken(theRequest);
+	}
 
+	private boolean isOAuthEnabled() {
+		return config.getOauth().getEnabled();
+	}
 }
