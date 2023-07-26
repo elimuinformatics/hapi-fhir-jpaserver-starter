@@ -42,7 +42,7 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 
 		try {
 			if (Constants.URL_TOKEN_METADATA.equals(theRequest.getRequestPath())) {
-				return authorizedRule();
+				return unauthorizedRule();
 			}
 
 			if (isUsingOAuth(theRequest)) {
