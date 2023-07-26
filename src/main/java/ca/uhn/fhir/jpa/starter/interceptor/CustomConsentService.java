@@ -93,13 +93,13 @@ public class CustomConsentService implements IConsentService {
     }
   }
 
-	private boolean isUsingOAuth(RequestDetails theRequest) {
-		return isOAuthEnabled() && OAuth2Helper.hasToken(theRequest);
-	}
+  private boolean isUsingOAuth(RequestDetails theRequest) {
+    return isOAuthEnabled() && OAuth2Helper.hasToken(theRequest);
+  }
 
-	private boolean isOAuthEnabled() {
-		return config.getOauth().getEnabled();
-	}
+  private boolean isOAuthEnabled() {
+    return config.getOauth().getEnabled();
+  }
 
   private boolean isTaskRequest(RequestDetails theRequest) {
     String resourceName = theRequest.getResourceName();
