@@ -83,7 +83,7 @@ public class OAuth2Helper {
 
 	public static List<String> getClientRoles(DecodedJWT jwt, String clientId) {
 		Claim claim = jwt.getClaim("resource_access");
-		HashMap<String, HashMap<String, ArrayList<String>>> resources = claim.as(HashMap.class); // TODO: use asMap() instead?
+		HashMap<String, HashMap<String, ArrayList<String>>> resources = claim.as(HashMap.class);
 		HashMap<String, ArrayList<String>> clientMap = resources.getOrDefault(clientId, new HashMap<String, ArrayList<String>>());
 		return clientMap.getOrDefault("roles", new ArrayList<String>());
 	}
