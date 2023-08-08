@@ -58,14 +58,14 @@ public class CustomConsentService implements IConsentService {
         break;
       case "PUT":
         resourceName = theRequestDetails.getResourceName();
-        existingResource = getResourceFromDB(theRequestDetails.getRequestPath());
+        existingResource = getResourceFromDB(theRequestDetails.getRequestPath(),theRequestDetails);
         if (isResourceValid(resourceName, patientId, existingResource)) {
           proceed = isResourceValid(resourceName, patientId, theRequestDetails.getResource());
         }
         break;
       case "PATCH":
         resourceName = theRequestDetails.getResourceName();
-        existingResource = getResourceFromDB(theRequestDetails.getRequestPath());
+        existingResource = getResourceFromDB(theRequestDetails.getRequestPath(),theRequestDetails);
         if (isResourceValid(resourceName, patientId, existingResource)) {
           // As Patch request body doesn't contain any Resource we need to handle it
           // differently
@@ -98,9 +98,9 @@ public class CustomConsentService implements IConsentService {
         : ConsentOutcome.REJECT;
   }
 
-  private IBaseResource getResourceFromDB(String requestedPath) {
+  private IBaseResource getResourceFromDB(String requestedPath, RequestDetails theRequestDetails) {
     String[] requestDetail = requestedPath.split("/");
-    return daoRegistry.getResourceDao(requestDetail[0]).read(new IdType(requestDetail[1]));
+    return daoRegistry.getResourceDao(requestDetail[0]).read(new IdType(requestDetail[1]),theRequestDetails);
   }
 
   private boolean isResourceValid(String resourceName, String patientId,
