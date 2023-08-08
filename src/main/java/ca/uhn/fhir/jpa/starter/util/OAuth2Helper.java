@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.Validate;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.http.HttpHeaders;
@@ -40,12 +41,15 @@ public class OAuth2Helper {
 	private OAuth2Helper() {}
 
 	public static String getToken(RequestDetails theRequest) {
+		Validate.notNull(theRequest, "theRequest must not be null");
 		String auth = theRequest.getHeader(HttpHeaders.AUTHORIZATION);
 		return auth.substring(BEARER_PREFIX.length());
 	}
 
 	public static void verify(DecodedJWT jwt, String jwksUrl) throws IllegalArgumentException,
 			NoSuchAlgorithmException, InvalidKeySpecException, TokenExpiredException, JWTVerificationException {
+		Validate.notNull(jwt, "jwt must not be null");
+		Validate.notBlank(jwksUrl, "jwksUrl must not be blank");
 		// TODO: storage of cached public keys need to be a map by kid. there may be more than 1.
 		// TODO: Add an expiration for the caching of the key
 		// 	// TODO: JwkProvider??
@@ -60,6 +64,8 @@ public class OAuth2Helper {
 
 	public static RSAPublicKey getKey(String kid, String jwksUrl) throws RestClientException,
 			NoSuchAlgorithmException, InvalidKeySpecException {
+		Validate.notBlank(kid, "kid must not be blank");
+		Validate.notBlank(jwksUrl, "jwksUrl must not be blank");
 		RestTemplate restTemplate = new RestTemplate();
 		ResponseEntity<String> response = restTemplate.getForEntity(jwksUrl, String.class);
 		String rawE = null;
@@ -82,6 +88,8 @@ public class OAuth2Helper {
 	}
 
 	public static List<String> getClientRoles(DecodedJWT jwt, String clientId) {
+		Validate.notNull(jwt, "jwt must not be null");
+		Validate.notBlank(clientId, "clientId must not be blank");
 		Claim claim = jwt.getClaim("resource_access");
 		HashMap<String, HashMap<String, ArrayList<String>>> resources = claim.as(HashMap.class);
 		HashMap<String, ArrayList<String>> clientMap = resources.getOrDefault(clientId, new HashMap<String, ArrayList<String>>());
@@ -89,16 +97,21 @@ public class OAuth2Helper {
 	}
 
 	public static String getClaimAsString(RequestDetails theRequest, String name) {
+		Validate.notNull(theRequest, "theRequest must not be null");
+		Validate.notBlank(name, "name must not be blank");
 		String token = getToken(theRequest);
 		DecodedJWT jwt = JWT.decode(token);
 		return getClaimAsString(jwt, name);
 	}
 
 	public static String getClaimAsString(DecodedJWT jwt, String name) {
+		Validate.notNull(jwt, "jwt must not be null");
+		Validate.notBlank(name, "name must not be blank");
 		return jwt.getClaim(name).asString();
 	}
 
 	public static boolean canBeInPatientCompartment(String resourceName) {
+		Validate.notBlank(resourceName, "resourceName must not be blank");
 		/*
 		 * For Bundle Request resourceType would be null.
 		 * For now we allow all bundle operations this will apply normal rules from authorization intercepter
@@ -113,11 +126,14 @@ public class OAuth2Helper {
 	}
 
 	public static boolean hasToken(RequestDetails theRequest) {
+		Validate.notNull(theRequest, "theRequest must not be null");
 		String token = theRequest.getHeader(HttpHeaders.AUTHORIZATION);
 		return (!ObjectUtils.isEmpty(token) && token.toUpperCase().startsWith(BEARER_PREFIX));
 	}
 
 	private static Algorithm getAlgorithm(DecodedJWT jwt, Object publicKey) throws NoSuchAlgorithmException {
+		Validate.notNull(jwt, "jwt must not be null");
+		Validate.notNull(publicKey, "publicKey must not be null");
 		String alg = jwt.getAlgorithm();
 		switch (alg) {
 			case "HS256":
