@@ -166,6 +166,9 @@ public class CustomConsentService implements IConsentService {
   }
 
   private boolean isResourceForPatient(IBaseResource theResource, String patientId) {
+    if (theResource == null) {
+      return false;
+    }
     return isResourcePropertyForPatient(theResource, "for", patientId);
   }
 
