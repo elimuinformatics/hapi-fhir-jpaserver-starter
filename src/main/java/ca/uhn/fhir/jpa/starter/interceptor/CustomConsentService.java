@@ -125,9 +125,9 @@ public class CustomConsentService implements IConsentService {
 
   private ConsentOutcome startPutOperation(RequestDetails theRequestDetails, String patientId) {
     // Check for the persistent resource first to ensure that a 404 error is returned when trying
-    // to update any resource that is NOT for the patient in the token. Otherwise, this code would
-    // cause a 403; which would "leak" the knowledge (of the id) of a resource that the patient
-    // is not allowed access to.
+    // to update any resource that is NOT for the patient in the token. Otherwise, this operation
+    // would be inconsistent the behavior of canSeeResource which simply "hides" resources rather
+    // than returning a 403.
     boolean proceed = isResourceForPatient(getPersistentResource(theRequestDetails), patientId)
       && isResourceForPatient(theRequestDetails.getResource(), patientId);
     if (logger.isDebugEnabled()) {
@@ -139,9 +139,9 @@ public class CustomConsentService implements IConsentService {
 
   private ConsentOutcome startPatchOperation(RequestDetails theRequestDetails, String patientId) {
     // Check for the persistent resource first to ensure that a 404 error is returned when trying
-    // to update any resource that is NOT for the patient in the token. Otherwise, this code would
-    // cause a 403; which would "leak" the knowledge (of the id) of a resource that the patient
-    // is not allowed access to.
+    // to update any resource that is NOT for the patient in the token. Otherwise, this operation
+    // would be inconsistent the behavior of canSeeResource which simply "hides" resources rather
+    // than returning a 403.
     boolean proceed = isResourceForPatient(getPersistentResource(theRequestDetails), patientId)
       && isPatchRequestBodyValid(theRequestDetails, patientId);
     if (logger.isDebugEnabled()) {
