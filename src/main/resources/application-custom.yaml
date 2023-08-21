@@ -16,10 +16,10 @@ spring:
     check-location: false
     baselineOnMigrate: true
   datasource:
-    url: ${DB_PROTOCOL:jdbc:mysql}://${DB_HOST}:${DB_PORT}/${DB_NAME}?${DB_PARAMS}
+    url: ${DB_PROTOCOL:jdbc:mysql}://${DB_HOST}:${DB_PORT}/${DB_NAME}?enabledTLSProtocols=TLSv1.2
     username: ${DB_USER}
     password: ${DB_PASSWORD}
-    driverClassName: ${datasource.driver}
+    driverClassName: com.mysql.jdbc.Driver
     max-active: 15
 
     # database connection pool size
@@ -29,7 +29,7 @@ spring:
     properties:
       hibernate.format_sql: false
       hibernate.show_sql: false
-      hibernate.dialect: ${hibernate.dialect}
+      hibernate.dialect: org.hibernate.dialect.MySQL5InnoDBDialect
       hibernate.hbm2ddl.auto: update
       hibernate.jdbc.batch_size: 20
       hibernate.cache.use_query_cache: false
@@ -168,7 +168,7 @@ hapi:
     max_binary_size: 104857600
     max_page_size: 200
     retain_cached_searches_mins: 60
-    reuse_cached_search_results_millis: ${reuse_cached_search_results_millis}
+    reuse_cached_search_results_millis: 0
     tester:
       home:
         name: Local Tester
@@ -186,8 +186,8 @@ hapi:
     binary_storage_enabled: true
     bulk_export_enabled: true
     subscription:
-      resthook_enabled: ${subscription.resthook.enabled}
-      websocket_enabled: ${subscription.websocket.enabled}
+      resthook_enabled: true
+      websocket_enabled: true
 #      email:
 #        from: some@test.com
 #        host: google.com
