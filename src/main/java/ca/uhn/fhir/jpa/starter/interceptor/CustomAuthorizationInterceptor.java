@@ -87,7 +87,7 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 			.build();
 	}
 
-	private List<IAuthRule> authorizeOAuth(RequestDetails theRequest) throws AuthenticationException {
+	List<IAuthRule> authorizeOAuth(RequestDetails theRequest) throws AuthenticationException {
 		logger.info("Authorizing via OAuth2");
 		String token = OAuth2Helper.getToken(theRequest);
 		try {
@@ -128,7 +128,7 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 		}
 	}
 
-	private List<IAuthRule> authorizedInPatientCompartmentRule(RequestDetails theRequestDetails, String patientId) {
+	List<IAuthRule> authorizedInPatientCompartmentRule(RequestDetails theRequestDetails, String patientId) {
 		if (OAuth2Helper.canBeInPatientCompartment(theRequestDetails.getResourceName())) {
 			IdType patientIdType = new IdType("Patient", patientId);
 			return new RuleBuilder()
@@ -167,7 +167,7 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 		return config.getApikey().getKey();
 	}
 
-	private List<IAuthRule> authorizeApiKey(RequestDetails theRequest) throws AuthenticationException {
+	List<IAuthRule> authorizeApiKey(RequestDetails theRequest) throws AuthenticationException {
 		logger.info("Authorizing via API Key");
 		if (ApiKeyHelper.isAuthorized(theRequest, getApiKey())) {
 			return authorizedRule();

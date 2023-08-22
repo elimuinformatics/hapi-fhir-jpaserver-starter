@@ -2,6 +2,7 @@ package ca.uhn.fhir.jpa.starter.interceptor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 import org.slf4j.Logger;
@@ -39,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.jpa.starter.AppProperties;
+import ca.uhn.fhir.jpa.starter.AppProperties.Apikey;
 import ca.uhn.fhir.jpa.starter.AppProperties.Oauth;
 import ca.uhn.fhir.jpa.starter.util.OAuth2Helper;
 import ca.uhn.fhir.rest.annotation.IdParam;
@@ -47,6 +50,7 @@ import ca.uhn.fhir.rest.api.EncodingEnum;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.server.IResourceProvider;
 import ca.uhn.fhir.rest.server.RestfulServer;
+import ca.uhn.fhir.rest.server.exceptions.AuthenticationException;
 import ca.uhn.fhir.rest.server.exceptions.ResourceNotFoundException;
 import ca.uhn.fhir.rest.server.interceptor.auth.IAuthRule;
 import ca.uhn.fhir.rest.server.interceptor.auth.RuleBuilder;
@@ -58,7 +62,10 @@ class CustomAuthorizationInterceptorTest {
 	AppProperties mockConfig = new AppProperties();
 
 	@Spy
-	Oauth ourOAuth = new Oauth();
+	Oauth mockOAuth = new Oauth();
+
+	@Spy
+	Apikey mockApikey = new Apikey();
 
 	@Mock
 	OAuth2Helper mockOAuth2Helper;
@@ -74,8 +81,6 @@ class CustomAuthorizationInterceptorTest {
 	private static CloseableHttpClient ourClient;
 	private static Server ourServer;
 	private static final FhirContext ourCtx = FhirContext.forR4();
-//	private static final String TOKEN = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjY2NTQwYzc3LTcwNGEtNDI1OC05OGNjLTM1MjY2MDU2MjY1YiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IlRlc3QgVG9rZW4iLCJhZG1pbiI6dHJ1ZX0.JQJYLXI49QRm8NawZIiILoqotxugyiSOyYjlCsiDB0y0l-jM_pmyTJEvLjoeOix_5coARh60hiuQHyPTON11klECvlu6CbY0jHvEj68l2qsVJueWgEM__mjDLJfXOeQlZq6Fiyl18dgCbCJ-_g-YLAIAuvH2DRCErBnju88myHpcio_Atd5S5gXkg2ik2-zlxAevuem5ImmT5u9fq3n3T1N6VykH1ej5mrQMlqLG9oCvMR-yDEqQRd7driQzzZWbdNmpV4J_Fqws_Emye1RnQT2MWmH5Fa2S5sa9Wz2-uUGCwvJv3SJ3oui63CA0uDqwS6q7XWtSGwDk2Y52BOySFg";
-
 
 	@BeforeEach
 	public void before() throws FileNotFoundException {
@@ -149,7 +154,7 @@ class CustomAuthorizationInterceptorTest {
 
 	@Test
 	void testAllowAll() throws Exception {
-		mockConfig.setOauth(ourOAuth);
+		mockConfig.setOauth(mockOAuth);
 		ourServlet.registerInterceptor(new CustomAuthorizationInterceptor(mockConfig) {
 			@Override
 			public List<IAuthRule> buildRuleList(RequestDetails theRequest) {
@@ -182,7 +187,7 @@ class CustomAuthorizationInterceptorTest {
 
 	@Test
 	void testdenyAll() throws Exception {
-		mockConfig.setOauth(ourOAuth);
+		mockConfig.setOauth(mockOAuth);
 		ourServlet.registerInterceptor(new CustomAuthorizationInterceptor(mockConfig) {
 			@Override
 			public List<IAuthRule> buildRuleList(RequestDetails theRequest) {
@@ -222,8 +227,8 @@ class CustomAuthorizationInterceptorTest {
 
 	@Test
 	void testOAuthEnabledFalse() throws Exception {
-		mockConfig.setOauth(ourOAuth);
-		when(mockConfig.getOauth()).thenReturn(ourOAuth);
+		mockConfig.setOauth(mockOAuth);
+		when(mockConfig.getOauth()).thenReturn(mockOAuth);
 		ourInterceptor = new CustomAuthorizationInterceptor(mockConfig);
 
 		ourServlet.registerInterceptor(ourInterceptor);
@@ -251,57 +256,59 @@ class CustomAuthorizationInterceptorTest {
 		assertTrue(ourHitMethod);
 	}
 
-//	@Test
-//	void testOAuthEnabledTrue() throws Exception {
-//
-//		DecodedJWT jwt = mock(DecodedJWT.class);
-//	    Claim clientIdClaim = mock(Claim.class);
-//	    when(jwt.getClaim("client_id")).thenReturn(clientIdClaim);
-//	    when(jwt.getClaim("patient")).thenReturn(mock(Claim.class));
-//	    when(jwt.getClaim("patient").asString()).thenReturn("123");
-//		ourOAuth.setEnabled(true);
-//		ourOAuth.setClient_id("fhir4-api");
-//		ourOAuth.setUser_role("fhir4-user");
-//
-//		when(mockConfig.getOauth()).thenReturn(ourOAuth);
-//		when(mockConfig.getOauth().getJwks_url()).thenReturn("https://example.com/jwks");
-//		OAuth2Helper oauth2Helper = mock(OAuth2Helper.class);
-//		when(oauth2Helper.getClientRoles(jwt, ourOAuth.getClient_id())).thenReturn(Collections.singletonList("admin"));
-//		when(oauth2Helper.getClaimAsString(jwt, "patient")).thenReturn("123");
-//
-//		JWT jwtLibrary = mock(JWT.class);
-//		when(jwtLibrary.decode("valid_token")).thenReturn(jwt);
-//
-//		try (MockedStatic<JWT> mockedJwt = mockStatic(JWT.class)) {
-//			mockedJwt.when(() -> JWT.decode("valid_token")).thenReturn(jwt);
-//		}
-//
-//		ourServlet.registerInterceptor(ourInterceptor);
-//
-//		HttpGet httpGet;
-//		HttpResponse status;
-//		String response;
-//
-//		ourHitMethod = false;
-//		ourReturn = Collections.singletonList(createPatient(1));
-//		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Patient/1");
-//		httpGet.addHeader("Authorization", "Bearer " + TOKEN);
-//		status = ourClient.execute(httpGet);
-//		response = extractResponseAndClose(status);
-//		logger.info(response);
-//		assertEquals(200, status.getStatusLine().getStatusCode());
-//		assertTrue(ourHitMethod);
-//
-//		ourHitMethod = false;
-//		ourReturn = Collections.singletonList(createObservation(10, "Patient/1"));
-//		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Observation/10");
-//		httpGet.addHeader("Authorization", "Bearer " + TOKEN);
-//		status = ourClient.execute(httpGet);
-//		response = extractResponseAndClose(status);
-//		logger.info(response);
-//		assertEquals(200, status.getStatusLine().getStatusCode());
-//		assertTrue(ourHitMethod);
-//	}
+	@Test
+	void testAuthorizedInPatientCompartmentRule() throws Exception {
+		List<IAuthRule> expectedReadRule = new RuleBuilder().allow().read().allResources()
+				.inCompartment("Patient", new IdType("Patient", "1")).build();
+		List<IAuthRule> expectedWriteRule = new RuleBuilder().allow().write().allResources()
+				.inCompartment("Patient", new IdType("Patient", "1")).build();
+		List<IAuthRule> expectedDeleteRule = new RuleBuilder().allow().delete().allResources()
+				.inCompartment("Patient", new IdType("Patient", "1")).build();
+		List<IAuthRule> expectedTransactionRule = new RuleBuilder().allow().transaction().withAnyOperation()
+				.andApplyNormalRules().andThen().build();
+		List<IAuthRule> expectedPatchRule = new RuleBuilder().allow().patch().allRequests().andThen().build();
+
+		RequestDetails mockRequestDetails = Mockito.mock(RequestDetails.class);
+		Mockito.when(mockRequestDetails.getResourceName()).thenReturn("Observation");
+		List<IAuthRule> rule = ourInterceptor.authorizedInPatientCompartmentRule(mockRequestDetails, "1");
+
+		IAuthRule actualReadRule = rule.get(0);
+		IAuthRule actualPatchRule = rule.get(1);
+		IAuthRule actualWriteRule = rule.get(2);
+		IAuthRule actualDeleteRule = rule.get(3);
+		IAuthRule actualtransactionRule = rule.get(4);
+
+		assertEquals(expectedReadRule.get(0).toString(), actualReadRule.toString());
+		assertEquals(expectedPatchRule.get(0).toString(), actualPatchRule.toString());
+		assertEquals(expectedWriteRule.get(0).toString(), actualWriteRule.toString());
+		assertEquals(expectedDeleteRule.get(0).toString(), actualDeleteRule.toString());
+		assertEquals(expectedTransactionRule.get(0).toString(), actualtransactionRule.toString());
+	}
+
+	@Test
+	void testForValidApikey() throws Exception {
+		List<IAuthRule> expectedAllowAllRule = new RuleBuilder().allowAll().build();
+		RequestDetails mockRequestDetails = Mockito.mock(RequestDetails.class);
+		when(mockApikey.getKey()).thenReturn("test-api-key");
+		when(mockConfig.getApikey()).thenReturn(mockApikey);
+		when(mockRequestDetails.getHeader("x-api-key")).thenReturn("test-api-key");
+		when(mockRequestDetails.getResourceName()).thenReturn("Observation");
+		List<IAuthRule> rule = ourInterceptor.authorizeApiKey(mockRequestDetails);
+		IAuthRule actualAllowAllRule = rule.get(0);
+
+		assertEquals(expectedAllowAllRule.get(0).toString(), actualAllowAllRule.toString());
+	}
+
+	@Test
+	void testForInvalidApikey() throws Exception {
+		RequestDetails mockRequestDetails = Mockito.mock(RequestDetails.class);
+		when(mockApikey.getKey()).thenReturn("test-api-key-mismatch");
+		when(mockConfig.getApikey()).thenReturn(mockApikey);
+		when(mockRequestDetails.getHeader("x-api-key")).thenReturn("test-api-key");
+		when(mockRequestDetails.getResourceName()).thenReturn("Observation");
+
+		assertThrows(AuthenticationException.class, () -> ourInterceptor.authorizeApiKey(mockRequestDetails));
+	}
 
 	public static class MockObservationResourceProvider implements IResourceProvider {
 
