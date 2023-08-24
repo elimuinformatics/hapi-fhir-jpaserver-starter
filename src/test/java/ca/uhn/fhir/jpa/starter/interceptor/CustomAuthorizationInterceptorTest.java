@@ -96,11 +96,11 @@ class CustomAuthorizationInterceptorTest {
 	private static final String PATIENT_ID = "12345";
 	private static final String OBSERVATION_ID = "1234";
 	private static final String JWK_URL = "test-jwk-url";
-	private static final String FHIR_ADMIN = "fhir4-admin";
-	private static final String FHIR_USER = "fhir4-user";
+	private static final String ROLE_FHIR_ADMIN = "fhir4-admin";
+	private static final String ROLE_FHIR_USER = "fhir4-user";
 	private static final String API_KEY = "test-api-key";
-	private static final String API_KEY_INVAID = "test-api-key-invalid";
-	private static final String OMNIBUS_USER = "omnibus-user";
+	private static final String API_KEY_INVALID = "test-api-key-invalid";
+	private static final String ROLE_INVALID_USER = "invalid-user";
 
 	@BeforeEach
 	public void before() throws IOException {
@@ -108,24 +108,19 @@ class CustomAuthorizationInterceptorTest {
 		ourReturn = null;
 		ourHitMethod = false;
 		mockOAuth.setJwks_url(JWK_URL);
-		mockOAuth.setAdmin_role(FHIR_ADMIN);
-		mockOAuth.setUser_role(FHIR_USER);
-
+		mockOAuth.setAdmin_role(ROLE_FHIR_ADMIN);
+		mockOAuth.setUser_role(ROLE_FHIR_USER);
 		mockApikey.setKey(API_KEY);
-
 		mockConfig.setOauth(mockOAuth);
 		mockConfig.setApikey(mockApikey);
-
 		ourInterceptor = new CustomAuthorizationInterceptor(mockConfig);
 	}
 
 	@BeforeAll
 	public static void beforeClass() throws Exception {
 		ourServer = new Server(0);
-
 		MockPatientResourceProvider patProvider = new MockPatientResourceProvider();
 		MockObservationResourceProvider obsProv = new MockObservationResourceProvider();
-
 		ServletHandler proxyHandler = new ServletHandler();
 		ourServlet = new RestfulServer(ourCtx);
 		ourServlet.setFhirContext(ourCtx);
@@ -136,13 +131,10 @@ class CustomAuthorizationInterceptorTest {
 		ourServer.setHandler(proxyHandler);
 		JettyUtil.startServer(ourServer);
 		ourPort = JettyUtil.getPortForStartedServer(ourServer);
-
-		PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager(5000,
-				TimeUnit.MILLISECONDS);
+		PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager(5000,TimeUnit.MILLISECONDS);
 		HttpClientBuilder builder = HttpClientBuilder.create();
 		builder.setConnectionManager(connectionManager);
 		ourClient = builder.build();
-
 	}
 
 	@Test
@@ -246,7 +238,6 @@ class CustomAuthorizationInterceptorTest {
 	@Test
 	void testAuthorizedInPatientCompartmentRule() throws Exception {
 		List<IAuthRule> expectedPatientCompartmentRuleList = getPatientCompartmentRuleList(PATIENT_ID);
-
 		when(mockRequestDetails.getResourceName()).thenReturn("Observation");
 		List<IAuthRule> actualPatientCompartmentRuleList = ourInterceptor.authorizedInPatientCompartmentRule(mockRequestDetails, PATIENT_ID);
 
@@ -266,7 +257,7 @@ class CustomAuthorizationInterceptorTest {
 
 	@Test
 	void testForInvalidApikey() throws Exception {
-		when(mockRequestDetails.getHeader("x-api-key")).thenReturn(API_KEY_INVAID);
+		when(mockRequestDetails.getHeader("x-api-key")).thenReturn(API_KEY_INVALID);
 		when(mockRequestDetails.getResourceName()).thenReturn("Observation");
 
 		assertThrows(AuthenticationException.class, () -> ourInterceptor.authorizeApiKey(mockRequestDetails));
@@ -275,10 +266,9 @@ class CustomAuthorizationInterceptorTest {
 	@Test
 	void testAuthorizeOAuth() throws Exception {
 		List<IAuthRule> expectedAllowAllRule = new RuleBuilder().allowAll().build();
-
 		ArrayList<String> clientRoles = new ArrayList<>();
-		clientRoles.add(FHIR_ADMIN);
-		clientRoles.add(FHIR_USER);
+		clientRoles.add(ROLE_FHIR_ADMIN);
+		clientRoles.add(ROLE_FHIR_USER);
 		try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
 			mockedStatic.when(() -> OAuth2Helper.getToken(any())).thenReturn(TOKEN);
 			when(mockRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.GET);
@@ -293,9 +283,8 @@ class CustomAuthorizationInterceptorTest {
 	@Test
 	void testAuthorizeOAuthDeleteWhenAdminRole() throws Exception {
 		List<IAuthRule> expectedAllowAllRule = new RuleBuilder().allowAll().build();
-
 		ArrayList<String> adminClientRoles = new ArrayList<>();
-		adminClientRoles.add(FHIR_ADMIN);
+		adminClientRoles.add(ROLE_FHIR_ADMIN);
 		try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
 			mockedStatic.when(() -> OAuth2Helper.getToken(mockRequestDetails)).thenReturn(TOKEN);
 			when(mockRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.DELETE);
@@ -310,9 +299,8 @@ class CustomAuthorizationInterceptorTest {
 	@Test
 	void testAuthorizeOAuthDeleteWhenUserRole() throws Exception {
 		List<IAuthRule> expectedDenyAllRule = new RuleBuilder().allow().metadata().andThen().denyAll().build();
-
 		ArrayList<String> userClientRoles = new ArrayList<>();
-		userClientRoles.add(FHIR_USER);
+		userClientRoles.add(ROLE_FHIR_USER);
 		try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
 			mockedStatic.when(() -> OAuth2Helper.getToken(mockRequestDetails)).thenReturn(TOKEN);
 			when(mockRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.DELETE);
@@ -337,14 +325,13 @@ class CustomAuthorizationInterceptorTest {
 	@Test
 	void testAuthorizeOAuthWithTokenHavingInvalidRole() throws Exception {
 		List<IAuthRule> expectedDenyAllRule = new RuleBuilder().allow().metadata().andThen().denyAll().build();
-
-		ArrayList<String> InvalidClientRoles = new ArrayList<>();
-		InvalidClientRoles.add(OMNIBUS_USER);
+		ArrayList<String> invalidClientRoles = new ArrayList<>();
+		invalidClientRoles.add(ROLE_INVALID_USER);
 		try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
 			mockedStatic.when(() -> OAuth2Helper.getToken(mockRequestDetails)).thenReturn(TOKEN);
 			when(mockRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.GET);
 			mockedStatic.when(() -> OAuth2Helper.verify(any(), any())).thenAnswer((Answer<Void>) invocation -> null);
-			mockedStatic.when(() -> OAuth2Helper.getClientRoles(any(), any())).thenReturn(InvalidClientRoles);
+			mockedStatic.when(() -> OAuth2Helper.getClientRoles(any(), any())).thenReturn(invalidClientRoles);
 			List<IAuthRule> actualDenyAllRule = ourInterceptor.authorizeOAuth(mockRequestDetails);
 
 			assertEquals(expectedDenyAllRule.toString(), actualDenyAllRule.toString());
@@ -354,10 +341,9 @@ class CustomAuthorizationInterceptorTest {
 	@Test
 	void testAuthorizeOAuthWithTokenHavingPatientClaim() throws Exception {
 		List<IAuthRule> expectedPatientCompartmentRule = getPatientCompartmentRuleList(PATIENT_ID);
-
 		ArrayList<String> clientRoles = new ArrayList<>();
-		clientRoles.add(FHIR_ADMIN);
-		clientRoles.add(FHIR_USER);
+		clientRoles.add(ROLE_FHIR_ADMIN);
+		clientRoles.add(ROLE_FHIR_USER);
 		try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
 			mockedStatic.when(() -> OAuth2Helper.getToken(mockRequestDetails)).thenReturn(TOKEN);
 			when(mockRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.GET);
@@ -457,5 +443,4 @@ class CustomAuthorizationInterceptorTest {
 		JettyUtil.closeServer(ourServer);
 		TestUtil.randomizeLocaleAndTimezone();
 	}
-
 }
