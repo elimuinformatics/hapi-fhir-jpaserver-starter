@@ -16,7 +16,7 @@ spring:
     check-location: false
     baselineOnMigrate: true
   datasource:
-    url: ${DB_PROTOCOL:jdbc:mysql}://${DB_HOST}:${DB_PORT}/${DB_NAME}?enabledTLSProtocols=TLSv1.2
+    url: ${DB_PROTOCOL:jdbc:mysql}://${DB_HOST}:${DB_PORT}/${DB_NAME}?${DB_PARAMS}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     driverClassName: com.mysql.jdbc.Driver
