@@ -141,7 +141,6 @@ public class Application extends SpringBootServletInitializer {
     String serverPath = appProperties.getServer_path();
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration(serverPath + "/.well-known/*", corsInterceptor.getConfig());
-    // FilterRegistrationBean filterBean = new FilterRegistrationBean(new CorsFilter(source));
     FilterRegistrationBean filterBean = new FilterRegistrationBean();
     filterBean.setFilter(new SmartConfigurationFilter());
     filterBean.setOrder(0);
@@ -151,7 +150,6 @@ public class Application extends SpringBootServletInitializer {
   @Component
   @Conditional(OnCorsPresent.class)
   public class SmartConfigurationFilter implements Filter {
-
     @Override
     public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
       HttpServletRequest request = (HttpServletRequest)req;
