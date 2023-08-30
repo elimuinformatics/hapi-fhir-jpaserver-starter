@@ -2,22 +2,22 @@ package ca.uhn.fhir.jpa.starter.interceptor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -32,6 +32,7 @@ import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Reference;
 import org.hl7.fhir.r4.model.Resource;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,23 +47,35 @@ import org.slf4j.LoggerFactory;
 
 import com.auth0.jwt.exceptions.TokenExpiredException;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.interceptor.api.HookParams;
+import ca.uhn.fhir.interceptor.api.IInterceptorBroadcaster;
+import ca.uhn.fhir.interceptor.api.Pointcut;
 import ca.uhn.fhir.jpa.starter.AppProperties;
 import ca.uhn.fhir.jpa.starter.AppProperties.Apikey;
 import ca.uhn.fhir.jpa.starter.AppProperties.Oauth;
+import ca.uhn.fhir.jpa.starter.util.ApiKeyHelper;
 import ca.uhn.fhir.jpa.starter.util.OAuth2Helper;
+import ca.uhn.fhir.rest.annotation.ConditionalUrlParam;
+import ca.uhn.fhir.rest.annotation.Delete;
 import ca.uhn.fhir.rest.annotation.IdParam;
+import ca.uhn.fhir.rest.annotation.OptionalParam;
 import ca.uhn.fhir.rest.annotation.Read;
+import ca.uhn.fhir.rest.annotation.Search;
 import ca.uhn.fhir.rest.api.EncodingEnum;
-import ca.uhn.fhir.rest.api.RequestTypeEnum;
+import ca.uhn.fhir.rest.api.MethodOutcome;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
+import ca.uhn.fhir.rest.api.server.storage.TransactionDetails;
+import ca.uhn.fhir.rest.param.TokenAndListParam;
 import ca.uhn.fhir.rest.server.IResourceProvider;
 import ca.uhn.fhir.rest.server.RestfulServer;
-import ca.uhn.fhir.rest.server.exceptions.AuthenticationException;
 import ca.uhn.fhir.rest.server.exceptions.ResourceNotFoundException;
 import ca.uhn.fhir.rest.server.interceptor.auth.IAuthRule;
 import ca.uhn.fhir.rest.server.interceptor.auth.RuleBuilder;
+import ca.uhn.fhir.rest.server.servlet.ServletRequestDetails;
 import ca.uhn.fhir.test.utilities.JettyUtil;
 import ca.uhn.fhir.util.TestUtil;
 
@@ -99,7 +112,6 @@ class CustomAuthorizationInterceptorTest {
 	private static final String ROLE_FHIR_ADMIN = "fhir4-admin";
 	private static final String ROLE_FHIR_USER = "fhir4-user";
 	private static final String API_KEY = "test-api-key";
-	private static final String API_KEY_INVALID = "test-api-key-invalid";
 	private static final String ROLE_INVALID_USER = "invalid-user";
 
 	@BeforeEach
@@ -113,7 +125,6 @@ class CustomAuthorizationInterceptorTest {
 		mockApikey.setKey(API_KEY);
 		mockConfig.setOauth(mockOAuth);
 		mockConfig.setApikey(mockApikey);
-		ourInterceptor = new CustomAuthorizationInterceptor(mockConfig);
 	}
 
 	@BeforeAll
@@ -209,7 +220,8 @@ class CustomAuthorizationInterceptorTest {
 	}
 
 	@Test
-	void testOAuthEnabledFalse() throws Exception {
+	void testAllAuthFalse() throws Exception {
+		ourInterceptor = new CustomAuthorizationInterceptor(mockConfig);
 		ourServlet.registerInterceptor(ourInterceptor);
 
 		HttpGet httpGet;
@@ -236,135 +248,352 @@ class CustomAuthorizationInterceptorTest {
 	}
 
 	@Test
-	void testAuthorizedInPatientCompartmentRule() throws Exception {
-		List<IAuthRule> expectedPatientCompartmentRuleList = getPatientCompartmentRuleList(PATIENT_ID);
-		when(mockRequestDetails.getResourceName()).thenReturn("Observation");
-		List<IAuthRule> actualPatientCompartmentRuleList = ourInterceptor.authorizedInPatientCompartmentRule(mockRequestDetails, PATIENT_ID);
-
-		assertEquals(expectedPatientCompartmentRuleList.toString(), actualPatientCompartmentRuleList.toString());
-	}
-
-	@Test
-	void testForValidApikey() throws Exception {
-		List<IAuthRule> expectedAllowAllRule = new RuleBuilder().allowAll().build();
-		when(mockRequestDetails.getHeader("x-api-key")).thenReturn(API_KEY);
-		when(mockRequestDetails.getResourceName()).thenReturn("Observation");
-		List<IAuthRule> rule = ourInterceptor.authorizeApiKey(mockRequestDetails);
-		IAuthRule actualAllowAllRule = rule.get(0);
-
-		assertEquals(expectedAllowAllRule.get(0).toString(), actualAllowAllRule.toString());
-	}
-
-	@Test
-	void testForInvalidApikey() throws Exception {
-		when(mockRequestDetails.getHeader("x-api-key")).thenReturn(API_KEY_INVALID);
-		when(mockRequestDetails.getResourceName()).thenReturn("Observation");
-
-		assertThrows(AuthenticationException.class, () -> ourInterceptor.authorizeApiKey(mockRequestDetails));
-	}
-
-	@Test
-	void testAuthorizeOAuth() throws Exception {
-		List<IAuthRule> expectedAllowAllRule = new RuleBuilder().allowAll().build();
+	void testOAuthEnabledTrue() throws Exception {
+		mockOAuth.setEnabled(true);
 		ArrayList<String> clientRoles = new ArrayList<>();
 		clientRoles.add(ROLE_FHIR_ADMIN);
 		clientRoles.add(ROLE_FHIR_USER);
-		try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
-			mockedStatic.when(() -> OAuth2Helper.getToken(any())).thenReturn(TOKEN);
-			when(mockRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.GET);
-			mockedStatic.when(() -> OAuth2Helper.verify(any(), any())).thenAnswer((Answer<Void>) invocation -> null);
-			mockedStatic.when(() -> OAuth2Helper.getClientRoles(any(), any())).thenReturn(clientRoles);
-			List<IAuthRule> actualAllowAllRule = ourInterceptor.authorizeOAuth(mockRequestDetails);
+		ourInterceptor = new CustomAuthorizationInterceptor(mockConfig) {
+			@Override
+			public List<IAuthRule> buildRuleList(RequestDetails theRequestDetails) {
+				try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
+					mockedStatic.when(() -> OAuth2Helper.hasToken(any())).thenReturn(true);
+					mockedStatic.when(() -> OAuth2Helper.getToken(any())).thenReturn(TOKEN);
+					mockedStatic.when(() -> OAuth2Helper.verify(any(), any())).thenAnswer((Answer<Void>) invocation -> null);
+					mockedStatic.when(() -> OAuth2Helper.getClientRoles(any(), any())).thenReturn(clientRoles);
+					return super.buildRuleList(theRequestDetails);
+				}
+			}
+		};
+		ourServlet.registerInterceptor(ourInterceptor);
 
-			assertEquals(expectedAllowAllRule.toString(), actualAllowAllRule.toString());
-		}
-	}
+		HttpGet httpGet;
+		HttpResponse status;
+		String response;
 
-	@Test
-	void testAuthorizeOAuthDeleteWhenAdminRole() throws Exception {
-		List<IAuthRule> expectedAllowAllRule = new RuleBuilder().allowAll().build();
-		ArrayList<String> adminClientRoles = new ArrayList<>();
-		adminClientRoles.add(ROLE_FHIR_ADMIN);
-		try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
-			mockedStatic.when(() -> OAuth2Helper.getToken(mockRequestDetails)).thenReturn(TOKEN);
-			when(mockRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.DELETE);
-			mockedStatic.when(() -> OAuth2Helper.verify(any(), any())).thenAnswer((Answer<Void>) invocation -> null);
-			mockedStatic.when(() -> OAuth2Helper.getClientRoles(any(), any())).thenReturn(adminClientRoles);
-			List<IAuthRule> actualAllowAllRule = ourInterceptor.authorizeOAuth(mockRequestDetails);
+		ourHitMethod = false;
+		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
+		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
+		status = ourClient.execute(httpGet);
+		response = extractResponseAndClose(status);
+		logger.info(response);
+		assertEquals(200, status.getStatusLine().getStatusCode());
+		assertTrue(ourHitMethod);
 
-			assertEquals(expectedAllowAllRule.toString(), actualAllowAllRule.toString());
-		}
-	}
-
-	@Test
-	void testAuthorizeOAuthDeleteWhenUserRole() throws Exception {
-		List<IAuthRule> expectedDenyAllRule = new RuleBuilder().allow().metadata().andThen().denyAll().build();
-		ArrayList<String> userClientRoles = new ArrayList<>();
-		userClientRoles.add(ROLE_FHIR_USER);
-		try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
-			mockedStatic.when(() -> OAuth2Helper.getToken(mockRequestDetails)).thenReturn(TOKEN);
-			when(mockRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.DELETE);
-			mockedStatic.when(() -> OAuth2Helper.verify(any(), any())).thenAnswer((Answer<Void>) invocation -> null);
-			mockedStatic.when(() -> OAuth2Helper.getClientRoles(any(), any())).thenReturn(userClientRoles);
-			List<IAuthRule> actualDenyAllRule = ourInterceptor.authorizeOAuth(mockRequestDetails);
-			assertEquals(expectedDenyAllRule.toString(), actualDenyAllRule.toString());
-		}
+		ourHitMethod = false;
+		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
+		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
+		status = ourClient.execute(httpGet);
+		response = extractResponseAndClose(status);
+		logger.info(response);
+		assertEquals(200, status.getStatusLine().getStatusCode());
+		assertTrue(ourHitMethod);
 	}
 
 	@Test
 	void testAuthorizeOAuthWithExpiredToken() throws Exception {
-		try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
-			mockedStatic.when(() -> OAuth2Helper.getToken(mockRequestDetails)).thenReturn(TOKEN);
-			when(mockRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.GET);
-			mockedStatic.when(() -> OAuth2Helper.verify(any(), any())).thenThrow(TokenExpiredException.class);
+		mockOAuth.setEnabled(true);
+		ArrayList<String> clientRoles = new ArrayList<>();
+		clientRoles.add(ROLE_FHIR_ADMIN);
+		clientRoles.add(ROLE_FHIR_USER);
+		ourInterceptor = new CustomAuthorizationInterceptor(mockConfig) {
+			@Override
+			public List<IAuthRule> buildRuleList(RequestDetails theRequestDetails) {
+				try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
+					mockedStatic.when(() -> OAuth2Helper.hasToken(any())).thenReturn(true);
+					mockedStatic.when(() -> OAuth2Helper.getToken(any())).thenReturn(TOKEN);
+					mockedStatic.when(() -> OAuth2Helper.verify(any(), any())).thenThrow(TokenExpiredException.class);
+					mockedStatic.when(() -> OAuth2Helper.getClientRoles(any(), any())).thenReturn(clientRoles);
+					return super.buildRuleList(theRequestDetails);
+				}
+			}
+		};
+		ourServlet.registerInterceptor(ourInterceptor);
 
-			assertThrows(AuthenticationException.class, () -> ourInterceptor.authorizeOAuth(mockRequestDetails));
-		}
+		HttpGet httpGet;
+		HttpResponse status;
+		String response;
+
+		ourHitMethod = false;
+		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
+		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
+		status = ourClient.execute(httpGet);
+		response = extractResponseAndClose(status);
+		logger.info(response);
+		assertEquals(401, status.getStatusLine().getStatusCode());
+		assertFalse(ourHitMethod);
+
+		ourHitMethod = false;
+		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
+		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
+		status = ourClient.execute(httpGet);
+		response = extractResponseAndClose(status);
+		logger.info(response);
+		assertEquals(401, status.getStatusLine().getStatusCode());
+		assertFalse(ourHitMethod);
 	}
 
 	@Test
 	void testAuthorizeOAuthWithTokenHavingInvalidRole() throws Exception {
-		List<IAuthRule> expectedDenyAllRule = new RuleBuilder().allow().metadata().andThen().denyAll().build();
+		mockOAuth.setEnabled(true);
 		ArrayList<String> invalidClientRoles = new ArrayList<>();
 		invalidClientRoles.add(ROLE_INVALID_USER);
-		try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
-			mockedStatic.when(() -> OAuth2Helper.getToken(mockRequestDetails)).thenReturn(TOKEN);
-			when(mockRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.GET);
-			mockedStatic.when(() -> OAuth2Helper.verify(any(), any())).thenAnswer((Answer<Void>) invocation -> null);
-			mockedStatic.when(() -> OAuth2Helper.getClientRoles(any(), any())).thenReturn(invalidClientRoles);
-			List<IAuthRule> actualDenyAllRule = ourInterceptor.authorizeOAuth(mockRequestDetails);
+		ourInterceptor = new CustomAuthorizationInterceptor(mockConfig) {
+			@Override
+			public List<IAuthRule> buildRuleList(RequestDetails theRequestDetails) {
+				try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
+					mockedStatic.when(() -> OAuth2Helper.hasToken(any())).thenReturn(true);
+					mockedStatic.when(() -> OAuth2Helper.getToken(any())).thenReturn(TOKEN);
+					mockedStatic.when(() -> OAuth2Helper.verify(any(), any())).thenAnswer((Answer<Void>) invocation -> null);
+					mockedStatic.when(() -> OAuth2Helper.getClientRoles(any(), any())).thenReturn(invalidClientRoles);
+					return super.buildRuleList(theRequestDetails);
+				}
+			}
+		};
+		ourServlet.registerInterceptor(ourInterceptor);
 
-			assertEquals(expectedDenyAllRule.toString(), actualDenyAllRule.toString());
-		}
+		HttpGet httpGet;
+		HttpResponse status;
+		String response;
+
+		ourHitMethod = false;
+		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
+		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
+		status = ourClient.execute(httpGet);
+		response = extractResponseAndClose(status);
+		logger.info(response);
+		assertEquals(403, status.getStatusLine().getStatusCode());
+		assertFalse(ourHitMethod);
+
+		ourHitMethod = false;
+		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
+		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
+		status = ourClient.execute(httpGet);
+		response = extractResponseAndClose(status);
+		logger.info(response);
+		assertEquals(403, status.getStatusLine().getStatusCode());
+		assertFalse(ourHitMethod);
 	}
 
 	@Test
 	void testAuthorizeOAuthWithTokenHavingPatientClaim() throws Exception {
-		List<IAuthRule> expectedPatientCompartmentRule = getPatientCompartmentRuleList(PATIENT_ID);
+		mockOAuth.setEnabled(true);
 		ArrayList<String> clientRoles = new ArrayList<>();
 		clientRoles.add(ROLE_FHIR_ADMIN);
 		clientRoles.add(ROLE_FHIR_USER);
-		try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
-			mockedStatic.when(() -> OAuth2Helper.getToken(mockRequestDetails)).thenReturn(TOKEN);
-			when(mockRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.GET);
-			when(mockRequestDetails.getResourceName()).thenReturn("Observation");
-			mockedStatic.when(() -> OAuth2Helper.verify(any(), any())).thenAnswer((Answer<Void>) invocation -> null);
-			mockedStatic.when(() -> OAuth2Helper.getClientRoles(any(), any())).thenReturn(clientRoles);
-			mockedStatic.when(() -> OAuth2Helper.getClaimAsString(any(DecodedJWT.class), anyString()))
-					.thenReturn(PATIENT_ID);
-			mockedStatic.when(() -> OAuth2Helper.canBeInPatientCompartment(anyString())).thenReturn(true);
-			List<IAuthRule> actualPatientCompartmentRule = ourInterceptor.authorizeOAuth(mockRequestDetails);
+		ourInterceptor = new CustomAuthorizationInterceptor(mockConfig) {
+			@Override
+			public List<IAuthRule> buildRuleList(RequestDetails theRequestDetails) {
+				try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
+					mockedStatic.when(() -> OAuth2Helper.hasToken(any())).thenReturn(true);
+					mockedStatic.when(() -> OAuth2Helper.getToken(any())).thenReturn(TOKEN);
+					mockedStatic.when(() -> OAuth2Helper.verify(any(), any())).thenAnswer((Answer<Void>) invocation -> null);
+					mockedStatic.when(() -> OAuth2Helper.getClientRoles(any(), any())).thenReturn(clientRoles);
+					mockedStatic.when(() -> OAuth2Helper.getClaimAsString(any(DecodedJWT.class), anyString())).thenReturn(PATIENT_ID);
+					mockedStatic.when(() -> OAuth2Helper.canBeInPatientCompartment(anyString())).thenReturn(true);
+					return super.buildRuleList(theRequestDetails);
+				}
+			}
+		};
+		ourServlet.registerInterceptor(ourInterceptor);
 
-			assertEquals(expectedPatientCompartmentRule.toString(), actualPatientCompartmentRule.toString());
-		}
+		HttpGet httpGet;
+		HttpResponse status;
+		String response;
+
+		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
+		ourHitMethod = false;
+		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
+		status = ourClient.execute(httpGet);
+		response = extractResponseAndClose(status);
+		logger.info("compartment: {}", response);
+		assertEquals(200, status.getStatusLine().getStatusCode());
+		assertTrue(ourHitMethod);
+
+		ourHitMethod = false;
+		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
+		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
+		status = ourClient.execute(httpGet);
+		response = extractResponseAndClose(status);
+		ObjectMapper mapper = new ObjectMapper();
+		JsonNode jsonNode = mapper.readTree(response);
+		logger.info(response);
+		String responsePatient = jsonNode.get("subject").get("reference").asText().split("/")[1];
+		assertEquals(200, status.getStatusLine().getStatusCode());
+		assertEquals(PATIENT_ID, responsePatient);
+		assertTrue(ourHitMethod);
+
+		ourReturn = Arrays.asList(createPatient(Integer.valueOf(PATIENT_ID)),createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
+		ourHitMethod = false;
+		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Patient/123");
+		status = ourClient.execute(httpGet);
+		response = extractResponseAndClose(status);
+		logger.info("compartment: {}", response);
+		assertEquals(403, status.getStatusLine().getStatusCode());
+		assertFalse(ourHitMethod);
 	}
 
-	private List<IAuthRule> getPatientCompartmentRuleList(String patientId) {
-		IdType patientIdType = new IdType("Patient", patientId);
-		return new RuleBuilder().allow().read().allResources().inCompartment("Patient", patientIdType).andThen().allow()
-				.patch().allRequests().andThen().allow().write().allResources().inCompartment("Patient", patientIdType)
-				.andThen().allow().delete().allResources().inCompartment("Patient", patientIdType).andThen().allow()
-				.transaction().withAnyOperation().andApplyNormalRules().andThen().denyAll().build();
+	@Test
+	void testAuthorizeOAuthDeleteWhenAdminRole() throws Exception {
+		mockOAuth.setEnabled(true);
+		ArrayList<String> adminClientRoles = new ArrayList<>();
+		adminClientRoles.add(ROLE_FHIR_ADMIN);
+		ourInterceptor = new CustomAuthorizationInterceptor(mockConfig) {
+			@Override
+			public List<IAuthRule> buildRuleList(RequestDetails theRequestDetails) {
+				try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
+					mockedStatic.when(() -> OAuth2Helper.hasToken(any())).thenReturn(true);
+					mockedStatic.when(() -> OAuth2Helper.getToken(any())).thenReturn(TOKEN);
+					mockedStatic.when(() -> OAuth2Helper.verify(any(), any())).thenAnswer((Answer<Void>) invocation -> null);
+					mockedStatic.when(() -> OAuth2Helper.getClientRoles(any(), any())).thenReturn(adminClientRoles);
+					return super.buildRuleList(theRequestDetails);
+				}
+			}
+		};
+		ourServlet.registerInterceptor(ourInterceptor);
+
+		HttpDelete HttpDelete;
+		HttpResponse status;
+		String response;
+
+		ourHitMethod = false;
+		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
+		HttpDelete = new HttpDelete("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
+		status = ourClient.execute(HttpDelete);
+		response = extractResponseAndClose(status);
+		logger.info(response);
+		assertEquals(204, status.getStatusLine().getStatusCode());
+		assertTrue(ourHitMethod);
+
+		ourHitMethod = false;
+		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
+		HttpDelete = new HttpDelete("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
+		status = ourClient.execute(HttpDelete);
+		response = extractResponseAndClose(status);
+		logger.info(response);
+		assertEquals(204, status.getStatusLine().getStatusCode());
+		assertTrue(ourHitMethod);
+	}
+
+	@Test
+	void testAuthorizeOAuthDeleteWhenUserRole() throws Exception {
+		mockOAuth.setEnabled(true);
+		ArrayList<String> userClientRoles = new ArrayList<>();
+		userClientRoles.add(ROLE_FHIR_USER);
+		ourInterceptor = new CustomAuthorizationInterceptor(mockConfig) {
+			@Override
+			public List<IAuthRule> buildRuleList(RequestDetails theRequestDetails) {
+				try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
+					mockedStatic.when(() -> OAuth2Helper.hasToken(any())).thenReturn(true);
+					mockedStatic.when(() -> OAuth2Helper.getToken(any())).thenReturn(TOKEN);
+					mockedStatic.when(() -> OAuth2Helper.verify(any(), any())).thenAnswer((Answer<Void>) invocation -> null);
+					mockedStatic.when(() -> OAuth2Helper.getClientRoles(any(), any())).thenReturn(userClientRoles);
+					return super.buildRuleList(theRequestDetails);
+				}
+			}
+		};
+		ourServlet.registerInterceptor(ourInterceptor);
+
+		HttpDelete HttpDelete;
+		HttpResponse status;
+		String response;
+
+		ourHitMethod = false;
+		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
+		HttpDelete = new HttpDelete("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
+		status = ourClient.execute(HttpDelete);
+		response = extractResponseAndClose(status);
+		logger.info(response);
+		assertEquals(403, status.getStatusLine().getStatusCode());
+		assertFalse(ourHitMethod);
+
+		ourHitMethod = false;
+		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
+		HttpDelete = new HttpDelete("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
+		status = ourClient.execute(HttpDelete);
+		response = extractResponseAndClose(status);
+		logger.info(response);
+		assertEquals(403, status.getStatusLine().getStatusCode());
+		assertFalse(ourHitMethod);
+	}
+
+	@Test
+	void testApiKeyEnabledTrue() throws Exception {
+		mockApikey.setEnabled(true);
+		ArrayList<String> clientRoles = new ArrayList<>();
+		clientRoles.add(ROLE_FHIR_ADMIN);
+		clientRoles.add(ROLE_FHIR_USER);
+		ourInterceptor = new CustomAuthorizationInterceptor(mockConfig) {
+			@Override
+			public List<IAuthRule> buildRuleList(RequestDetails theRequestDetails) {
+				try (MockedStatic<ApiKeyHelper> mockedStatic = mockStatic(ApiKeyHelper.class)) {
+					mockedStatic.when(() -> ApiKeyHelper.hasApiKey(any())).thenReturn(true);
+					mockedStatic.when(() -> ApiKeyHelper.isAuthorized(any(), any())).thenReturn(true);
+					return super.buildRuleList(theRequestDetails);
+				}
+			}
+		};
+		ourServlet.registerInterceptor(ourInterceptor);
+
+		HttpGet httpGet;
+		HttpResponse status;
+		String response;
+
+		ourHitMethod = false;
+		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
+		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
+		status = ourClient.execute(httpGet);
+		response = extractResponseAndClose(status);
+		logger.info(response);
+		assertEquals(200, status.getStatusLine().getStatusCode());
+		assertTrue(ourHitMethod);
+
+		ourHitMethod = false;
+		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
+		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
+		status = ourClient.execute(httpGet);
+		response = extractResponseAndClose(status);
+		logger.info(response);
+		assertEquals(200, status.getStatusLine().getStatusCode());
+		assertTrue(ourHitMethod);
+	}
+
+	@Test
+	void testApiKeyUnAuthorized() throws Exception {
+		mockApikey.setEnabled(true);
+		ourInterceptor = new CustomAuthorizationInterceptor(mockConfig) {
+			@Override
+			public List<IAuthRule> buildRuleList(RequestDetails theRequestDetails) {
+				try (MockedStatic<ApiKeyHelper> mockedStatic = mockStatic(ApiKeyHelper.class)) {
+					mockedStatic.when(() -> ApiKeyHelper.hasApiKey(any())).thenReturn(true);
+					mockedStatic.when(() -> ApiKeyHelper.isAuthorized(any(), any())).thenReturn(false);
+					return super.buildRuleList(theRequestDetails);
+				}
+			}
+		};
+		ourServlet.registerInterceptor(ourInterceptor);
+
+		HttpGet httpGet;
+		HttpResponse status;
+		String response;
+
+		ourHitMethod = false;
+		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
+		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
+		status = ourClient.execute(httpGet);
+		response = extractResponseAndClose(status);
+		logger.info(response);
+		assertEquals(401, status.getStatusLine().getStatusCode());
+		assertFalse(ourHitMethod);
+
+		ourHitMethod = false;
+		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
+		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
+		status = ourClient.execute(httpGet);
+		response = extractResponseAndClose(status);
+		logger.info(response);
+		assertEquals(401, status.getStatusLine().getStatusCode());
+		assertFalse(ourHitMethod);
 	}
 
 	private Resource createPatient(Integer theId) {
@@ -419,6 +648,12 @@ class CustomAuthorizationInterceptorTest {
 			}
 			return (Observation) ourReturn.get(0);
 		}
+
+		@Delete()
+		public MethodOutcome delete(@IdParam IdType theId) {
+			ourHitMethod = true;
+			return new MethodOutcome();
+		}
 	}
 
 	public static class MockPatientResourceProvider implements IResourceProvider {
@@ -426,6 +661,12 @@ class CustomAuthorizationInterceptorTest {
 		@Override
 		public Class<? extends IBaseResource> getResourceType() {
 			return Patient.class;
+		}
+
+		@Search()
+		public List<Resource> search(@OptionalParam(name = "_id") TokenAndListParam theIdParam) {
+			ourHitMethod = true;
+			return ourReturn;
 		}
 
 		@Read(version = true)
@@ -436,6 +677,20 @@ class CustomAuthorizationInterceptorTest {
 			}
 			return (Patient) ourReturn.get(0);
 		}
+
+		@Delete()
+		public MethodOutcome delete(IInterceptorBroadcaster theRequestOperationCallback, @IdParam IdType theId,
+				@ConditionalUrlParam String theConditionalUrl, RequestDetails theRequestDetails) {
+			ourHitMethod = true;
+			for (IBaseResource next : ourReturn) {
+				HookParams params = new HookParams().add(IBaseResource.class, next)
+						.add(RequestDetails.class, theRequestDetails)
+						.addIfMatchesType(ServletRequestDetails.class, theRequestDetails)
+						.add(TransactionDetails.class, new TransactionDetails());
+				theRequestOperationCallback.callHooks(Pointcut.STORAGE_PRESTORAGE_RESOURCE_DELETED, params);
+			}
+			return new MethodOutcome();
+		}
 	}
 
 	@AfterAll
@@ -443,4 +698,11 @@ class CustomAuthorizationInterceptorTest {
 		JettyUtil.closeServer(ourServer);
 		TestUtil.randomizeLocaleAndTimezone();
 	}
+
+	@AfterEach
+	public void destroy() throws Exception {
+		mockOAuth.setEnabled(false);
+		mockApikey.setEnabled(false);
+	}
+
 }
