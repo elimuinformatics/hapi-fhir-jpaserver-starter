@@ -700,7 +700,7 @@ class CustomAuthorizationInterceptorTest {
 	}
 
 	@AfterEach
-	public void destroy() throws Exception {
+	public void reset() throws Exception {
 		mockOAuth.setEnabled(false);
 		mockApikey.setEnabled(false);
 	}
