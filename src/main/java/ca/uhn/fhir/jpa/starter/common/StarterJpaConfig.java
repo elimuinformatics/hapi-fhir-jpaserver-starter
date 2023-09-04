@@ -46,6 +46,7 @@ import ca.uhn.fhir.jpa.starter.common.validation.IRepositoryValidationIntercepto
 import ca.uhn.fhir.jpa.starter.interceptor.CapabilityStatementCustomizer;
 import ca.uhn.fhir.jpa.starter.interceptor.CustomAuthorizationInterceptor;
 import ca.uhn.fhir.jpa.starter.interceptor.CustomConsentService;
+import ca.uhn.fhir.jpa.starter.interceptor.CustomLoggingInterceptor;
 import ca.uhn.fhir.jpa.starter.interceptor.CustomSearchNarrowingInterceptor;
 import ca.uhn.fhir.jpa.starter.ips.IpsConfigCondition;
 import ca.uhn.fhir.jpa.starter.util.EnvironmentHelper;
@@ -178,18 +179,17 @@ public class StarterJpaConfig {
 	}
 
 	@Bean
-	public LoggingInterceptor loggingInterceptor(AppProperties appProperties) {
+	public CustomLoggingInterceptor loggingInterceptor(AppProperties appProperties) {
 
 		/*
 		 * Add some logging for each request
 		 */
-
-		LoggingInterceptor loggingInterceptor = new LoggingInterceptor();
-		loggingInterceptor.setLoggerName(appProperties.getLogger().getName());
-		loggingInterceptor.setMessageFormat(appProperties.getLogger().getFormat());
-		loggingInterceptor.setErrorMessageFormat(appProperties.getLogger().getError_format());
-		loggingInterceptor.setLogExceptions(appProperties.getLogger().getLog_exceptions());
-		return loggingInterceptor;
+		CustomLoggingInterceptor customLoggingInterceptor = new CustomLoggingInterceptor();
+		customLoggingInterceptor.setLoggerName(appProperties.getLogger().getName());
+		customLoggingInterceptor.setMessageFormat(appProperties.getLogger().getFormat());
+		customLoggingInterceptor.setErrorMessageFormat(appProperties.getLogger().getError_format());
+		customLoggingInterceptor.setLogExceptions(appProperties.getLogger().getLog_exceptions());
+		return customLoggingInterceptor;
 	}
 
 	@Bean("packageInstaller")
@@ -246,7 +246,7 @@ public class StarterJpaConfig {
 	}
 
 	@Bean
-	public RestfulServer restfulServer(IFhirSystemDao<?, ?> fhirSystemDao, AppProperties appProperties, DaoRegistry daoRegistry, Optional<MdmProviderLoader> mdmProviderProvider, IJpaSystemProvider jpaSystemProvider, ResourceProviderFactory resourceProviderFactory, JpaStorageSettings jpaStorageSettings, ISearchParamRegistry searchParamRegistry, IValidationSupport theValidationSupport, DatabaseBackedPagingProvider databaseBackedPagingProvider, LoggingInterceptor loggingInterceptor, Optional<TerminologyUploaderProvider> terminologyUploaderProvider, Optional<SubscriptionTriggeringProvider> subscriptionTriggeringProvider, Optional<CorsInterceptor> corsInterceptor, IInterceptorBroadcaster interceptorBroadcaster, Optional<BinaryAccessProvider> binaryAccessProvider, BinaryStorageInterceptor binaryStorageInterceptor, IValidatorModule validatorModule, Optional<GraphQLProvider> graphQLProvider, BulkDataExportProvider bulkDataExportProvider, BulkDataImportProvider bulkDataImportProvider, ValueSetOperationProvider theValueSetOperationProvider, ReindexProvider reindexProvider, PartitionManagementProvider partitionManagementProvider, Optional<RepositoryValidatingInterceptor> repositoryValidatingInterceptor, IPackageInstallerSvc packageInstallerSvc, ThreadSafeResourceDeleterSvc theThreadSafeResourceDeleterSvc, ApplicationContext appContext, Optional<IpsOperationProvider> theIpsOperationProvider) {
+	public RestfulServer restfulServer(IFhirSystemDao<?, ?> fhirSystemDao, AppProperties appProperties, DaoRegistry daoRegistry, Optional<MdmProviderLoader> mdmProviderProvider, IJpaSystemProvider jpaSystemProvider, ResourceProviderFactory resourceProviderFactory, JpaStorageSettings jpaStorageSettings, ISearchParamRegistry searchParamRegistry, IValidationSupport theValidationSupport, DatabaseBackedPagingProvider databaseBackedPagingProvider, CustomLoggingInterceptor loggingInterceptor, Optional<TerminologyUploaderProvider> terminologyUploaderProvider, Optional<SubscriptionTriggeringProvider> subscriptionTriggeringProvider, Optional<CorsInterceptor> corsInterceptor, IInterceptorBroadcaster interceptorBroadcaster, Optional<BinaryAccessProvider> binaryAccessProvider, BinaryStorageInterceptor binaryStorageInterceptor, IValidatorModule validatorModule, Optional<GraphQLProvider> graphQLProvider, BulkDataExportProvider bulkDataExportProvider, BulkDataImportProvider bulkDataImportProvider, ValueSetOperationProvider theValueSetOperationProvider, ReindexProvider reindexProvider, PartitionManagementProvider partitionManagementProvider, Optional<RepositoryValidatingInterceptor> repositoryValidatingInterceptor, IPackageInstallerSvc packageInstallerSvc, ThreadSafeResourceDeleterSvc theThreadSafeResourceDeleterSvc, ApplicationContext appContext, Optional<IpsOperationProvider> theIpsOperationProvider) {
 		RestfulServer fhirServer = new RestfulServer(fhirSystemDao.getContext());
 
 		List<String> supportedResourceTypes = appProperties.getSupported_resource_types();
