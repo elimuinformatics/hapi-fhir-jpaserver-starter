@@ -46,7 +46,6 @@ import ca.uhn.fhir.jpa.starter.common.validation.IRepositoryValidationIntercepto
 import ca.uhn.fhir.jpa.starter.interceptor.CapabilityStatementCustomizer;
 import ca.uhn.fhir.jpa.starter.interceptor.CustomAuthorizationInterceptor;
 import ca.uhn.fhir.jpa.starter.interceptor.CustomConsentService;
-import ca.uhn.fhir.jpa.starter.interceptor.CustomLoggingInterceptor;
 import ca.uhn.fhir.jpa.starter.interceptor.CustomSearchNarrowingInterceptor;
 import ca.uhn.fhir.jpa.starter.ips.IpsConfigCondition;
 import ca.uhn.fhir.jpa.starter.util.EnvironmentHelper;
@@ -310,7 +309,6 @@ public class StarterJpaConfig {
 		}
 
 		fhirServer.registerInterceptor(loggingInterceptor);
-		fhirServer.registerInterceptor(new CustomLoggingInterceptor());
 
 		/*
 		 * If you are hosting this server at a specific DNS name, the server will try to
