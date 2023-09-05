@@ -14,16 +14,12 @@ import ca.uhn.fhir.interceptor.api.Interceptor;
 import ca.uhn.fhir.interceptor.api.Pointcut;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.api.server.ResponseDetails;
-import ca.uhn.fhir.rest.server.interceptor.LoggingInterceptor;
 import ca.uhn.fhir.rest.server.servlet.ServletRequestDetails;
 
 @Interceptor
-public class CustomLoggingInterceptor extends LoggingInterceptor {
-	private static final String X_CORRELATION_ID = "X-Correlation-ID";
+public class CustomLoggingInterceptor {
+	private static final String X_CORRELATION_ID = "X-Correlation-Id";
 
-	public CustomLoggingInterceptor() {
-		super();
-	}
 
 	@Hook(Pointcut.SERVER_INCOMING_REQUEST_PRE_PROCESSED)
 	public boolean incomingRequestPreProcessed(HttpServletRequest httpServletRequest,

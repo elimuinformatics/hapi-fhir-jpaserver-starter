@@ -42,6 +42,7 @@ import ca.uhn.fhir.rest.api.EncodingEnum;
 import ca.uhn.fhir.rest.server.IResourceProvider;
 import ca.uhn.fhir.rest.server.RestfulServer;
 import ca.uhn.fhir.rest.server.exceptions.ResourceNotFoundException;
+import ca.uhn.fhir.rest.server.interceptor.LoggingInterceptor;
 import ca.uhn.fhir.test.utilities.JettyUtil;
 
 @ExtendWith(OutputCaptureExtension.class)
@@ -57,7 +58,7 @@ class CustomLoggingInterceptorTest {
 	private static ObjectMapper mapper = new ObjectMapper();
 	
 	private static final String PATIENT_ID = "12345";
-	private static final String X_CORRELATION_ID = "X-Correlation-ID";
+	private static final String X_CORRELATION_ID = "X-Correlation-Id";
 	private static final String X_CORRELATION_ID_VALUE = "123454687544644";
 
 	@BeforeEach
@@ -76,6 +77,8 @@ class CustomLoggingInterceptorTest {
 		ourServlet.setFhirContext(ourCtx);
 		ourServlet.registerProviders(patProvider);
 		ourServlet.setDefaultResponseEncoding(EncodingEnum.JSON);
+		ourServlet.registerInterceptor(new LoggingInterceptor());
+		ourServlet.registerInterceptor(new CustomLoggingInterceptor());
 		ServletHolder servletHolder = new ServletHolder(ourServlet);
 		proxyHandler.addServletWithMapping(servletHolder, "/fhir/*");
 		ourServer.setHandler(proxyHandler);
