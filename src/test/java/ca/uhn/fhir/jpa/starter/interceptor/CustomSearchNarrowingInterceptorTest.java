@@ -2,10 +2,7 @@ package ca.uhn.fhir.jpa.starter.interceptor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mockStatic;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -18,7 +15,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.InjectMocks;
-import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 import org.slf4j.Logger;
@@ -27,13 +23,14 @@ import org.slf4j.LoggerFactory;
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.jpa.starter.AppProperties;
 import ca.uhn.fhir.jpa.starter.AppProperties.Oauth;
-import ca.uhn.fhir.jpa.starter.util.OAuth2Helper;
 import ca.uhn.fhir.model.api.IQueryParameterOr;
 import ca.uhn.fhir.model.api.IQueryParameterType;
 import ca.uhn.fhir.rest.annotation.OptionalParam;
 import ca.uhn.fhir.rest.annotation.Search;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
+import ca.uhn.fhir.rest.client.api.IHttpRequest;
+import ca.uhn.fhir.rest.client.interceptor.BearerTokenAuthInterceptor;
 import ca.uhn.fhir.rest.param.BaseAndListParam;
 import ca.uhn.fhir.rest.param.ReferenceAndListParam;
 import ca.uhn.fhir.rest.param.TokenAndListParam;
@@ -59,6 +56,8 @@ class CustomSearchNarrowingInterceptorTest {
 	private static ReferenceAndListParam ourLastPatientParam;
 	private static final FhirContext ourCtx = FhirContext.forR4();
 	private static final String PATIENT_ID = "12345";
+	private static final String TOKEN_WITH_PATIENT_CLAIM = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJwYXRpZW50IjoiMTIzNDUifQ.U6r_6XMH5Bw6Lc4CBwcwrj5HvdAZeL8ZlIQXNnyJGow";
+	private static final String TOKEN_WITHOUT_PATIENT_CLAIM = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
 	public IGenericClient myClient;
 
 	@RegisterExtension
@@ -67,31 +66,32 @@ class CustomSearchNarrowingInterceptorTest {
 			.registerProvider(new MockObservationResourceProvider());
 
 	@BeforeEach
-	public void before() throws IOException {
+	public void before() {
 		MockitoAnnotations.openMocks(this);
 		ourReturn = Collections.emptyList();
 		ourLastHitMethod = null;
 		ourLastIdParam = null;
 		ourLastPatientParam = null;
-		mockOAuth.setEnabled(false);
+		mockOAuth.setEnabled(true);
 		mockConfig.setOauth(mockOAuth);
+		ourSearchNarrowingInterceptor = new CustomSearchNarrowingInterceptor(mockConfig) {
+			@Override
+			protected AuthorizedList buildAuthorizedList(RequestDetails theRequestDetails) {
+				return super.buildAuthorizedList(theRequestDetails);
+			}
+		};
+		myRestfulServerExtension.registerInterceptor(ourSearchNarrowingInterceptor);
 		myClient = myRestfulServerExtension.getFhirClient();
 	}
 
 	@Test
 	void testSearchNarrowObservationWithPatientClaim() throws Exception {
-		mockOAuth.setEnabled(true);
-		ourSearchNarrowingInterceptor = new CustomSearchNarrowingInterceptor(mockConfig) {
+		myClient.registerInterceptor(new BearerTokenAuthInterceptor() {
 			@Override
-			protected AuthorizedList buildAuthorizedList(RequestDetails theRequestDetails) {
-				try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
-					mockedStatic.when(() -> OAuth2Helper.hasToken(any())).thenReturn(true);
-					mockedStatic.when(() -> OAuth2Helper.getClaimAsString(any(RequestDetails.class), any())).thenReturn(PATIENT_ID);
-					return super.buildAuthorizedList(theRequestDetails);
-				}
+			public void interceptRequest(IHttpRequest theRequest) {
+				theRequest.addHeader("Authorization", "Bearer " + TOKEN_WITH_PATIENT_CLAIM);
 			}
-		};
-		myRestfulServerExtension.registerInterceptor(ourSearchNarrowingInterceptor);
+		});
 		myClient.search().forResource("Observation").execute();
 		logger.info("Patient Reference Param : {}", ourLastPatientParam);
 
@@ -101,18 +101,12 @@ class CustomSearchNarrowingInterceptorTest {
 
 	@Test
 	void testSearchNarrowObservationWithoutPatientClaim() throws Exception {
-		mockOAuth.setEnabled(true);
-		ourSearchNarrowingInterceptor = new CustomSearchNarrowingInterceptor(mockConfig) {
+		myClient.registerInterceptor(new BearerTokenAuthInterceptor() {
 			@Override
-			protected AuthorizedList buildAuthorizedList(RequestDetails theRequestDetails) {
-				try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
-					mockedStatic.when(() -> OAuth2Helper.hasToken(any())).thenReturn(true);
-					mockedStatic.when(() -> OAuth2Helper.getClaimAsString(any(RequestDetails.class), any())).thenReturn(null);
-					return super.buildAuthorizedList(theRequestDetails);
-				}
+			public void interceptRequest(IHttpRequest theRequest) {
+				theRequest.addHeader("Authorization", "Bearer " + TOKEN_WITHOUT_PATIENT_CLAIM);
 			}
-		};
-		myRestfulServerExtension.registerInterceptor(ourSearchNarrowingInterceptor);
+		});
 		myClient.search().forResource("Observation").execute();
 		logger.info("Patient Reference Param : {}", ourLastPatientParam);
 
@@ -122,18 +116,12 @@ class CustomSearchNarrowingInterceptorTest {
 
 	@Test
 	void testSearchNarrowPatientWithPatientClaim() throws Exception {
-		mockOAuth.setEnabled(true);
-		ourSearchNarrowingInterceptor = new CustomSearchNarrowingInterceptor(mockConfig) {
+		myClient.registerInterceptor(new BearerTokenAuthInterceptor() {
 			@Override
-			protected AuthorizedList buildAuthorizedList(RequestDetails theRequestDetails) {
-				try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
-					mockedStatic.when(() -> OAuth2Helper.hasToken(any())).thenReturn(true);
-					mockedStatic.when(() -> OAuth2Helper.getClaimAsString(any(RequestDetails.class), any())).thenReturn(PATIENT_ID);
-					return super.buildAuthorizedList(theRequestDetails);
-				}
+			public void interceptRequest(IHttpRequest theRequest) {
+				theRequest.addHeader("Authorization", "Bearer " + TOKEN_WITH_PATIENT_CLAIM);
 			}
-		};
-		myRestfulServerExtension.registerInterceptor(ourSearchNarrowingInterceptor);
+		});
 		myClient.search().forResource("Patient").execute();
 		logger.info("Patient Id Param : {}", ourLastIdParam);
 
@@ -143,18 +131,12 @@ class CustomSearchNarrowingInterceptorTest {
 
 	@Test
 	void testSearchNarrowPatientWithoutPatientClaim() throws Exception {
-		mockOAuth.setEnabled(true);
-		ourSearchNarrowingInterceptor = new CustomSearchNarrowingInterceptor(mockConfig) {
+		myClient.registerInterceptor(new BearerTokenAuthInterceptor() {
 			@Override
-			protected AuthorizedList buildAuthorizedList(RequestDetails theRequestDetails) {
-				try (MockedStatic<OAuth2Helper> mockedStatic = mockStatic(OAuth2Helper.class)) {
-					mockedStatic.when(() -> OAuth2Helper.hasToken(any())).thenReturn(true);
-					mockedStatic.when(() -> OAuth2Helper.getClaimAsString(any(RequestDetails.class), any())).thenReturn(null);
-					return super.buildAuthorizedList(theRequestDetails);
-				}
+			public void interceptRequest(IHttpRequest theRequest) {
+				theRequest.addHeader("Authorization", "Bearer " + TOKEN_WITHOUT_PATIENT_CLAIM);
 			}
-		};
-		myRestfulServerExtension.registerInterceptor(ourSearchNarrowingInterceptor);
+		});
 		myClient.search().forResource("Patient").execute();
 		logger.info("Patient Id Param : {}", ourLastIdParam);
 
