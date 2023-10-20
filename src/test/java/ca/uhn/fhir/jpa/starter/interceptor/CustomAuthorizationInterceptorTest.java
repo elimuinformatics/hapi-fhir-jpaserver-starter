@@ -13,29 +13,24 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.servlet.ServletHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
 import org.hl7.fhir.instance.model.api.IBaseResource;
 import org.hl7.fhir.r4.model.IdType;
 import org.hl7.fhir.r4.model.Observation;
 import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Reference;
 import org.hl7.fhir.r4.model.Resource;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
@@ -57,7 +52,6 @@ import ca.uhn.fhir.interceptor.api.Pointcut;
 import ca.uhn.fhir.jpa.starter.AppProperties;
 import ca.uhn.fhir.jpa.starter.AppProperties.Apikey;
 import ca.uhn.fhir.jpa.starter.AppProperties.Oauth;
-import ca.uhn.fhir.jpa.starter.util.ApiKeyHelper;
 import ca.uhn.fhir.jpa.starter.util.OAuth2Helper;
 import ca.uhn.fhir.rest.annotation.ConditionalUrlParam;
 import ca.uhn.fhir.rest.annotation.Delete;
@@ -65,19 +59,16 @@ import ca.uhn.fhir.rest.annotation.IdParam;
 import ca.uhn.fhir.rest.annotation.OptionalParam;
 import ca.uhn.fhir.rest.annotation.Read;
 import ca.uhn.fhir.rest.annotation.Search;
-import ca.uhn.fhir.rest.api.EncodingEnum;
 import ca.uhn.fhir.rest.api.MethodOutcome;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.api.server.storage.TransactionDetails;
 import ca.uhn.fhir.rest.param.TokenAndListParam;
 import ca.uhn.fhir.rest.server.IResourceProvider;
-import ca.uhn.fhir.rest.server.RestfulServer;
 import ca.uhn.fhir.rest.server.exceptions.ResourceNotFoundException;
 import ca.uhn.fhir.rest.server.interceptor.auth.IAuthRule;
 import ca.uhn.fhir.rest.server.interceptor.auth.RuleBuilder;
 import ca.uhn.fhir.rest.server.servlet.ServletRequestDetails;
-import ca.uhn.fhir.test.utilities.JettyUtil;
-import ca.uhn.fhir.util.TestUtil;
+import ca.uhn.fhir.test.utilities.server.RestfulServerExtension;
 
 class CustomAuthorizationInterceptorTest {
 
@@ -97,12 +88,13 @@ class CustomAuthorizationInterceptorTest {
 	CustomAuthorizationInterceptor ourInterceptor;
 
 	private static Logger logger = LoggerFactory.getLogger(CustomAuthorizationInterceptorTest.class);
-	private static RestfulServer ourServlet;
 	private static boolean ourHitMethod;
 	private static List<Resource> ourReturn;
 	private static int ourPort;
 	private static CloseableHttpClient ourClient;
-	private static Server ourServer;
+	private static HttpGet httpGet;
+	private static HttpDelete HttpDelete;
+	private static String response;
 	private static final FhirContext ourCtx = FhirContext.forR4();
 
 	private static final String TOKEN = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.NHVaYe26MbtOYhSKkoKYdFVomg4i8ZJd8_-RU8VNbftc4TSMb4bXP3l3YlNWACwyXPGffz5aXHc6lty1Y2t4SWRqGteragsVdZufDn5BlnJl9pdR_kdVFUsra2rWKEofkZeIC4yWytE58sMIihvo9H1ScmmVwBcQP6XETqYd0aSHp1gOa9RdUPDvoXQ5oqygTqVtxaDr6wUFKrKItgBMzWIdNZ6y7O9E0DhEPTbE9rfBo6KTFsHAZnMg4k68CDp2woYIaXbmYTWcvbzIuHO7_37GT79XdIwkm95QJ7hYC9RiwrV7mesbY4PAahERJawntho0my942XheVLmGwLMBkQ";
@@ -114,8 +106,14 @@ class CustomAuthorizationInterceptorTest {
 	private static final String API_KEY = "test-api-key";
 	private static final String ROLE_INVALID_USER = "invalid-user";
 
+	@RegisterExtension
+	public RestfulServerExtension ourServer = new RestfulServerExtension(ourCtx)
+			.withServletPath("/fhir/*")
+			.registerProvider(new MockPatientResourceProvider())
+			.registerProvider(new MockObservationResourceProvider());
+
 	@BeforeEach
-	public void before() throws IOException {
+	public void before() {
 		MockitoAnnotations.openMocks(this);
 		ourReturn = null;
 		ourHitMethod = false;
@@ -125,126 +123,101 @@ class CustomAuthorizationInterceptorTest {
 		mockApikey.setKey(API_KEY);
 		mockConfig.setOauth(mockOAuth);
 		mockConfig.setApikey(mockApikey);
-	}
-
-	@BeforeAll
-	public static void beforeClass() throws Exception {
-		ourServer = new Server(0);
-		MockPatientResourceProvider patProvider = new MockPatientResourceProvider();
-		MockObservationResourceProvider obsProv = new MockObservationResourceProvider();
-		ServletHandler proxyHandler = new ServletHandler();
-		ourServlet = new RestfulServer(ourCtx);
-		ourServlet.setFhirContext(ourCtx);
-		ourServlet.registerProviders(patProvider, obsProv);
-		ourServlet.setDefaultResponseEncoding(EncodingEnum.JSON);
-		ServletHolder servletHolder = new ServletHolder(ourServlet);
-		proxyHandler.addServletWithMapping(servletHolder, "/fhir/*");
-		ourServer.setHandler(proxyHandler);
-		JettyUtil.startServer(ourServer);
-		ourPort = JettyUtil.getPortForStartedServer(ourServer);
-		PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager(5000,TimeUnit.MILLISECONDS);
-		HttpClientBuilder builder = HttpClientBuilder.create();
-		builder.setConnectionManager(connectionManager);
-		ourClient = builder.build();
+		ourClient = HttpClientBuilder.create().build();
+		ourPort = ourServer.getPort();
 	}
 
 	@Test
 	void testAllowAll() throws Exception {
-		ourServlet.registerInterceptor(new CustomAuthorizationInterceptor(mockConfig) {
+		ourServer.getRestfulServer().registerInterceptor(new CustomAuthorizationInterceptor(mockConfig) {
 			@Override
 			public List<IAuthRule> buildRuleList(RequestDetails theRequest) {
 				return new RuleBuilder().allowAll().build();
 			}
 		});
 
-		HttpGet httpGet;
-		HttpResponse status;
-		String response;
-
 		ourHitMethod = false;
 		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
 		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(200, status.getStatusLine().getStatusCode());
-		assertTrue(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(httpGet)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("Response: {}", response);
+			assertEquals(200, httpResponse.getStatusLine().getStatusCode());
+			assertTrue(ourHitMethod);
+		}
 
 		ourHitMethod = false;
 		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
 		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(200, status.getStatusLine().getStatusCode());
-		assertTrue(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(httpGet)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("Response: {}", response);
+			assertEquals(200, httpResponse.getStatusLine().getStatusCode());
+			assertTrue(ourHitMethod);
+		}
 	}
 
 	@Test
 	void testdenyAll() throws Exception {
-		ourServlet.registerInterceptor(new CustomAuthorizationInterceptor(mockConfig) {
+		ourServer.getRestfulServer().registerInterceptor(new CustomAuthorizationInterceptor(mockConfig) {
 			@Override
 			public List<IAuthRule> buildRuleList(RequestDetails theRequest) {
 				return new RuleBuilder().allow().metadata().andThen().denyAll().build();
 			}
 		});
 
-		HttpGet httpGet;
-		HttpResponse status;
-		String response;
-
 		ourHitMethod = false;
 		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
 		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(403, status.getStatusLine().getStatusCode());
-		assertFalse(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(httpGet)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("Response: {}", response);
+			assertEquals(403, httpResponse.getStatusLine().getStatusCode());
+			assertFalse(ourHitMethod);
+		}
 
 		ourHitMethod = false;
 		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
 		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(403, status.getStatusLine().getStatusCode());
-		assertFalse(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(httpGet)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("Response: {}", response);
+			assertEquals(403, httpResponse.getStatusLine().getStatusCode());
+			assertFalse(ourHitMethod);
+		}
 
-		ourHitMethod = false;
 		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/metadata");
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(200, status.getStatusLine().getStatusCode());
+		try (CloseableHttpResponse httpResponse = ourClient.execute(httpGet)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("Response: {}", response);
+			assertEquals(200, httpResponse.getStatusLine().getStatusCode());
+		}
 	}
 
 	@Test
 	void testAllAuthFalse() throws Exception {
 		ourInterceptor = new CustomAuthorizationInterceptor(mockConfig);
-		ourServlet.registerInterceptor(ourInterceptor);
-
-		HttpGet httpGet;
-		HttpResponse status;
-		String response;
+		ourServer.getRestfulServer().registerInterceptor(ourInterceptor);
 
 		ourHitMethod = false;
 		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
 		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(200, status.getStatusLine().getStatusCode());
-		assertTrue(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(httpGet)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("Response: {}", response);
+			assertEquals(200, httpResponse.getStatusLine().getStatusCode());
+			assertTrue(ourHitMethod);
+		}
 
 		ourHitMethod = false;
 		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
 		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(200, status.getStatusLine().getStatusCode());
-		assertTrue(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(httpGet)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("Response: {}", response);
+			assertEquals(200, httpResponse.getStatusLine().getStatusCode());
+			assertTrue(ourHitMethod);
+		}
 	}
 
 	@Test
@@ -265,29 +238,27 @@ class CustomAuthorizationInterceptorTest {
 				}
 			}
 		};
-		ourServlet.registerInterceptor(ourInterceptor);
-
-		HttpGet httpGet;
-		HttpResponse status;
-		String response;
+		ourServer.getRestfulServer().registerInterceptor(ourInterceptor);
 
 		ourHitMethod = false;
 		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
 		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(200, status.getStatusLine().getStatusCode());
-		assertTrue(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(httpGet)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("Response: {}", response);
+			assertEquals(200, httpResponse.getStatusLine().getStatusCode());
+			assertTrue(ourHitMethod);
+		}
 
 		ourHitMethod = false;
 		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
 		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(200, status.getStatusLine().getStatusCode());
-		assertTrue(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(httpGet)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("Response: {}", response);
+			assertEquals(200, httpResponse.getStatusLine().getStatusCode());
+			assertTrue(ourHitMethod);
+		}
 	}
 
 	@Test
@@ -308,29 +279,27 @@ class CustomAuthorizationInterceptorTest {
 				}
 			}
 		};
-		ourServlet.registerInterceptor(ourInterceptor);
-
-		HttpGet httpGet;
-		HttpResponse status;
-		String response;
+		ourServer.getRestfulServer().registerInterceptor(ourInterceptor);
 
 		ourHitMethod = false;
 		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
 		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(401, status.getStatusLine().getStatusCode());
-		assertFalse(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(httpGet)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("Response: {}", response);
+			assertEquals(401, httpResponse.getStatusLine().getStatusCode());
+			assertFalse(ourHitMethod);
+		}
 
 		ourHitMethod = false;
 		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
 		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(401, status.getStatusLine().getStatusCode());
-		assertFalse(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(httpGet)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("Response: {}", response);
+			assertEquals(401, httpResponse.getStatusLine().getStatusCode());
+			assertFalse(ourHitMethod);
+		}
 	}
 
 	@Test
@@ -350,29 +319,27 @@ class CustomAuthorizationInterceptorTest {
 				}
 			}
 		};
-		ourServlet.registerInterceptor(ourInterceptor);
-
-		HttpGet httpGet;
-		HttpResponse status;
-		String response;
+		ourServer.getRestfulServer().registerInterceptor(ourInterceptor);
 
 		ourHitMethod = false;
 		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
 		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(403, status.getStatusLine().getStatusCode());
-		assertFalse(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(httpGet)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("Response: {}", response);
+			assertEquals(403, httpResponse.getStatusLine().getStatusCode());
+			assertFalse(ourHitMethod);
+		}
 
 		ourHitMethod = false;
 		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
 		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(403, status.getStatusLine().getStatusCode());
-		assertFalse(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(httpGet)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("Response: {}", response);
+			assertEquals(403, httpResponse.getStatusLine().getStatusCode());
+			assertFalse(ourHitMethod);
+		}
 	}
 
 	@Test
@@ -395,42 +362,41 @@ class CustomAuthorizationInterceptorTest {
 				}
 			}
 		};
-		ourServlet.registerInterceptor(ourInterceptor);
-
-		HttpGet httpGet;
-		HttpResponse status;
-		String response;
+		ourServer.getRestfulServer().registerInterceptor(ourInterceptor);
 
 		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
 		ourHitMethod = false;
 		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info("compartment: {}", response);
-		assertEquals(200, status.getStatusLine().getStatusCode());
-		assertTrue(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(httpGet)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("Response: {}", response);
+			assertEquals(200, httpResponse.getStatusLine().getStatusCode());
+			assertTrue(ourHitMethod);
+		}
 
 		ourHitMethod = false;
 		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
 		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		ObjectMapper mapper = new ObjectMapper();
-		JsonNode jsonNode = mapper.readTree(response);
-		logger.info(response);
-		String responsePatient = jsonNode.get("subject").get("reference").asText().split("/")[1];
-		assertEquals(200, status.getStatusLine().getStatusCode());
-		assertEquals(PATIENT_ID, responsePatient);
-		assertTrue(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(httpGet)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("Response: {}", response);
+			ObjectMapper mapper = new ObjectMapper();
+			JsonNode jsonNode = mapper.readTree(response);
+			String responsePatient = jsonNode.get("subject").get("reference").asText().split("/")[1];
+			assertEquals(200, httpResponse.getStatusLine().getStatusCode());
+			assertEquals(PATIENT_ID, responsePatient);
+			assertTrue(ourHitMethod);
+		}
 
-		ourReturn = Arrays.asList(createPatient(Integer.valueOf(PATIENT_ID)),createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
 		ourHitMethod = false;
+		ourReturn = Arrays.asList(createPatient(Integer.valueOf(PATIENT_ID)), createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
 		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Patient/123");
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info("compartment: {}", response);
-		assertEquals(403, status.getStatusLine().getStatusCode());
-		assertFalse(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(httpGet)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("compartment: {}", response);
+			assertEquals(403, httpResponse.getStatusLine().getStatusCode());
+			assertFalse(ourHitMethod);
+		}
 	}
 
 	@Test
@@ -450,29 +416,27 @@ class CustomAuthorizationInterceptorTest {
 				}
 			}
 		};
-		ourServlet.registerInterceptor(ourInterceptor);
-
-		HttpDelete HttpDelete;
-		HttpResponse status;
-		String response;
+		ourServer.getRestfulServer().registerInterceptor(ourInterceptor);
 
 		ourHitMethod = false;
 		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
 		HttpDelete = new HttpDelete("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
-		status = ourClient.execute(HttpDelete);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(204, status.getStatusLine().getStatusCode());
-		assertTrue(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(HttpDelete)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("compartment: {}", response);
+			assertEquals(204, httpResponse.getStatusLine().getStatusCode());
+			assertTrue(ourHitMethod);
+		}
 
 		ourHitMethod = false;
 		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
 		HttpDelete = new HttpDelete("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
-		status = ourClient.execute(HttpDelete);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(204, status.getStatusLine().getStatusCode());
-		assertTrue(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(HttpDelete)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("compartment: {}", response);
+			assertEquals(204, httpResponse.getStatusLine().getStatusCode());
+			assertTrue(ourHitMethod);
+		}
 	}
 
 	@Test
@@ -492,108 +456,27 @@ class CustomAuthorizationInterceptorTest {
 				}
 			}
 		};
-		ourServlet.registerInterceptor(ourInterceptor);
-
-		HttpDelete HttpDelete;
-		HttpResponse status;
-		String response;
+		ourServer.getRestfulServer().registerInterceptor(ourInterceptor);
 
 		ourHitMethod = false;
 		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
 		HttpDelete = new HttpDelete("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
-		status = ourClient.execute(HttpDelete);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(403, status.getStatusLine().getStatusCode());
-		assertFalse(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(HttpDelete)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("compartment: {}", response);
+			assertEquals(403, httpResponse.getStatusLine().getStatusCode());
+			assertFalse(ourHitMethod);
+		}
 
 		ourHitMethod = false;
 		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
 		HttpDelete = new HttpDelete("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
-		status = ourClient.execute(HttpDelete);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(403, status.getStatusLine().getStatusCode());
-		assertFalse(ourHitMethod);
-	}
-
-	@Test
-	void testApiKeyEnabledTrue() throws Exception {
-		mockApikey.setEnabled(true);
-		ArrayList<String> clientRoles = new ArrayList<>();
-		clientRoles.add(ROLE_FHIR_ADMIN);
-		clientRoles.add(ROLE_FHIR_USER);
-		ourInterceptor = new CustomAuthorizationInterceptor(mockConfig) {
-			@Override
-			public List<IAuthRule> buildRuleList(RequestDetails theRequestDetails) {
-				try (MockedStatic<ApiKeyHelper> mockedStatic = mockStatic(ApiKeyHelper.class)) {
-					mockedStatic.when(() -> ApiKeyHelper.hasApiKey(any())).thenReturn(true);
-					mockedStatic.when(() -> ApiKeyHelper.isAuthorized(any(), any())).thenReturn(true);
-					return super.buildRuleList(theRequestDetails);
-				}
-			}
-		};
-		ourServlet.registerInterceptor(ourInterceptor);
-
-		HttpGet httpGet;
-		HttpResponse status;
-		String response;
-
-		ourHitMethod = false;
-		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
-		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(200, status.getStatusLine().getStatusCode());
-		assertTrue(ourHitMethod);
-
-		ourHitMethod = false;
-		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
-		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(200, status.getStatusLine().getStatusCode());
-		assertTrue(ourHitMethod);
-	}
-
-	@Test
-	void testApiKeyUnAuthorized() throws Exception {
-		mockApikey.setEnabled(true);
-		ourInterceptor = new CustomAuthorizationInterceptor(mockConfig) {
-			@Override
-			public List<IAuthRule> buildRuleList(RequestDetails theRequestDetails) {
-				try (MockedStatic<ApiKeyHelper> mockedStatic = mockStatic(ApiKeyHelper.class)) {
-					mockedStatic.when(() -> ApiKeyHelper.hasApiKey(any())).thenReturn(true);
-					mockedStatic.when(() -> ApiKeyHelper.isAuthorized(any(), any())).thenReturn(false);
-					return super.buildRuleList(theRequestDetails);
-				}
-			}
-		};
-		ourServlet.registerInterceptor(ourInterceptor);
-
-		HttpGet httpGet;
-		HttpResponse status;
-		String response;
-
-		ourHitMethod = false;
-		ourReturn = Collections.singletonList(createPatient(Integer.valueOf(PATIENT_ID)));
-		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Patient/" + PATIENT_ID);
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(401, status.getStatusLine().getStatusCode());
-		assertFalse(ourHitMethod);
-
-		ourHitMethod = false;
-		ourReturn = Collections.singletonList(createObservation(Integer.valueOf(OBSERVATION_ID), "Patient/" + PATIENT_ID));
-		httpGet = new HttpGet("http://localhost:" + ourPort + "/fhir/Observation/" + OBSERVATION_ID);
-		status = ourClient.execute(httpGet);
-		response = extractResponseAndClose(status);
-		logger.info(response);
-		assertEquals(401, status.getStatusLine().getStatusCode());
-		assertFalse(ourHitMethod);
+		try (CloseableHttpResponse httpResponse = ourClient.execute(HttpDelete)) {
+			response = extractResponseAndClose(httpResponse);
+			logger.info("compartment: {}", response);
+			assertEquals(403, httpResponse.getStatusLine().getStatusCode());
+			assertFalse(ourHitMethod);
+		}
 	}
 
 	private Resource createPatient(Integer theId) {
@@ -693,16 +576,12 @@ class CustomAuthorizationInterceptorTest {
 		}
 	}
 
-	@AfterAll
-	public static void afterClassClearContext() throws Exception {
-		JettyUtil.closeServer(ourServer);
-		TestUtil.randomizeLocaleAndTimezone();
-	}
-
 	@AfterEach
 	public void reset() throws Exception {
 		mockOAuth.setEnabled(false);
 		mockApikey.setEnabled(false);
+		ourClient.close();
+		ourServer.getRestfulServer().getInterceptorService().unregisterAllInterceptors();
 	}
 
 }
