@@ -22,6 +22,7 @@ public class LogScrubbingTest {
 	ObjectMapper mapper = new ObjectMapper();
 	private static final String MESSAGE = "Hello, Testing Logs here..!!";
 	private static final String MASKMESSAGE_PATIENT = "patient=12345 PATIENT:12345 Patient-12345 Patient/12345 ";
+	private static final String MASKMESSAGE_PATIENT_UUID = "patient=2f84942e-6d39-4b18-b21b-6a891f9a8f84 PATIENT:2f84942e-6d39-4b18-b21b-6a891f9a8f84 Patient-2f84942e-6d39-4b18-b21b-6a891f9a8f84 Patient/2f84942e-6d39-4b18-b21b-6a891f9a8f84 ";
 	private static final String MASKMESSAGE_TASK = "task=12345 TASK:12345 Task-12345 Task/12345 ";
 	private static final String MASKMESSAGE_ACCESS_TOKEN = "access_token=\"eyJ0eXAiOiJKV1QiLCJhbGciOiJ\" access_token:\"eyJ0eXAiOiJKV1QiLCJhbGciOiJ\" access_token-\"eyJ0eXAiOiJKV1QiLCJhbGciOiJ\" ";
 	private static final String MASKMESSAGE_PATIENT_SUBSTRING = "this is a patient=12345 and patient-234 qwerasdf ...) ";
@@ -68,6 +69,14 @@ public class LogScrubbingTest {
 	@Test
 	void checkIfLoggingIsMaskedForPatient(CapturedOutput output) throws JsonMappingException, JsonProcessingException {
 		logMessage(MASKMESSAGE_PATIENT);
+		JsonNode jsonNode = mapper.readTree(output.getAll());
+		String message = jsonNode.get("message").asText();
+		Assertions.assertEquals("patient=**** PATIENT:**** Patient-**** Patient/**** ", message);
+	}
+
+	@Test
+	void checkIfLoggingIsMaskedForPatientINUUID(CapturedOutput output) throws JsonMappingException, JsonProcessingException {
+		logMessage(MASKMESSAGE_PATIENT_UUID);
 		JsonNode jsonNode = mapper.readTree(output.getAll());
 		String message = jsonNode.get("message").asText();
 		Assertions.assertEquals("patient=**** PATIENT:**** Patient-**** Patient/**** ", message);
