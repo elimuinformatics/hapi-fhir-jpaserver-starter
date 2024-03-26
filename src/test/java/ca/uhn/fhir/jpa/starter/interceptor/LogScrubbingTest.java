@@ -21,17 +21,17 @@ public class LogScrubbingTest {
  private static final Logger logger = LoggerFactory.getLogger(LogScrubbingTest.class);
 	ObjectMapper mapper = new ObjectMapper();
 	private static final String MESSAGE = "Hello, Testing Logs here..!!";
-	private static final String MASKMESSAGE_PATIENT = "patient=12345 PATIENT:12345 Patient-12345 Patient/12345 ";
-	private static final String MASKMESSAGE_PATIENT_UUID = "patient=2f84942e-6d39-4b18-b21b-6a891f9a8f84 PATIENT:2f84942e-6d39-4b18-b21b-6a891f9a8f84 Patient-2f84942e-6d39-4b18-b21b-6a891f9a8f84 Patient/2f84942e-6d39-4b18-b21b-6a891f9a8f84 ";
-	private static final String MASKMESSAGE_TASK = "task=12345 TASK:12345 Task-12345 Task/12345 ";
+	private static final String MASKMESSAGE_PATIENT = "patient=12345 PATIENT:12345 Patient-12345 Patient/12345 /Patient?id=12345 ";
+	private static final String MASKMESSAGE_PATIENT_UUID = "patient=2f84942e-6d39-4b18-b21b-6a891f9a8f84 PATIENT:2f84942e-6d39-4b18-b21b-6a891f9a8f84 Patient-2f84942e-6d39-4b18-b21b-6a891f9a8f84 Patient/2f84942e-6d39-4b18-b21b-6a891f9a8f84 /Patient?id=2f84942e-6d39-4b18-b21b-6a891f9a8f84 ";
+	private static final String MASKMESSAGE_TASK = "task=12345 TASK:12345 Task-12345 Task/12345 /Task?id=12345 ";
 	private static final String MASKMESSAGE_ACCESS_TOKEN = "access_token=\"eyJ0eXAiOiJKV1QiLCJhbGciOiJ\" access_token:\"eyJ0eXAiOiJKV1QiLCJhbGciOiJ\" access_token-\"eyJ0eXAiOiJKV1QiLCJhbGciOiJ\" ";
 	private static final String MASKMESSAGE_PATIENT_SUBSTRING = "this is a patient=12345 and patient-234 qwerasdf ...) ";
-	private static final String MASKMESSAGE_ENCOUNTER = "encounter=12345 ENCOUNTER:12345 Encounter-12345 Encounter/12345 " ;
-	private static final String MASKMESSAGE_MEDICATIONREQUEST = "medicationrequest=12345 MEDICATIONREQUEST:12345 medicationRequest-12345 Medicationrequest/12345 ";
-	private static final String MASKMESSAGE_OBSERVATION = "observation=12345 OBSERVATION:12345 Observation-12345 Observation/12345 ";
+	private static final String MASKMESSAGE_ENCOUNTER = "encounter=12345 ENCOUNTER:12345 Encounter-12345 Encounter/12345 /Encounter?id=12345 " ;
+	private static final String MASKMESSAGE_MEDICATIONREQUEST = "medicationrequest=12345 MEDICATIONREQUEST:12345 medicationRequest-12345 Medicationrequest/12345 /Medicationrequest?id=12345 ";
+	private static final String MASKMESSAGE_OBSERVATION = "observation=12345 OBSERVATION:12345 Observation-12345 Observation/12345 /Observation?id=12345 ";
 	private static final String MASKMESSAGE_ID_TOKEN = "id_token=12345 and id_token:12345 and id_token-12345 ";
 	private static final String MASKMESSAGE_REFRESH_TOKEN = "refresh_token=12345 and refresh_token:12345 and refresh_token-12345 ";
-	private static final String MASKMESSAGE_AUTHORIZATION = "authorization=123 authorization:1234 authorization-1234 ";
+	private static final String MASKMESSAGE_AUTHORIZATION = "authorization=123 authorization:1234 authorization-1234 /authorization?id=12345 ";
 	private static final String MASKMESSAGE_ALL_STRING = "patient=12345 task=12345 encounter=12345 medicationrequest=12345 observation=12345 id_token=eyJ0eXBkJo refresh_token=eyJ0eXAjdk authorization=eyJ0eXAiOi ";
 	private List<String> loggerAttributes = new ArrayList<>(List.of("level", "message", "thread_name", "logger_name"));
 	private boolean isValidJson = false;
@@ -71,7 +71,7 @@ public class LogScrubbingTest {
 		logMessage(MASKMESSAGE_PATIENT);
 		JsonNode jsonNode = mapper.readTree(output.getAll());
 		String message = jsonNode.get("message").asText();
-		Assertions.assertEquals("patient=**** PATIENT:**** Patient-**** Patient/**** ", message);
+		Assertions.assertEquals("patient=**** PATIENT:**** Patient-**** Patient/**** /Patient?**** ", message);
 	}
 
 	@Test
@@ -79,7 +79,7 @@ public class LogScrubbingTest {
 		logMessage(MASKMESSAGE_PATIENT_UUID);
 		JsonNode jsonNode = mapper.readTree(output.getAll());
 		String message = jsonNode.get("message").asText();
-		Assertions.assertEquals("patient=**** PATIENT:**** Patient-**** Patient/**** ", message);
+		Assertions.assertEquals("patient=**** PATIENT:**** Patient-**** Patient/**** /Patient?**** ", message);
 	}
 
 	@Test
@@ -87,7 +87,7 @@ public class LogScrubbingTest {
 		logMessage(MASKMESSAGE_TASK);
 		JsonNode jsonNode = mapper.readTree(output.getAll());
 		String message = jsonNode.get("message").asText();
-		Assertions.assertEquals("task=**** TASK:**** Task-**** Task/**** ", message);
+		Assertions.assertEquals("task=**** TASK:**** Task-**** Task/**** /Task?**** ", message);
 	}
 	
 	@Test
@@ -114,7 +114,7 @@ public class LogScrubbingTest {
 		logMessage(MASKMESSAGE_ENCOUNTER);
 		JsonNode jsonNode = mapper.readTree(output.getAll());
 		String message = jsonNode.get("message").asText();
-		Assertions.assertEquals("encounter=**** ENCOUNTER:**** Encounter-**** Encounter/**** ", message);
+		Assertions.assertEquals("encounter=**** ENCOUNTER:**** Encounter-**** Encounter/**** /Encounter?**** ", message);
 	}
 
 	@Test
@@ -122,7 +122,7 @@ public class LogScrubbingTest {
 		logMessage(MASKMESSAGE_MEDICATIONREQUEST);
 		JsonNode jsonNode = mapper.readTree(output.getAll());
 		String message = jsonNode.get("message").asText();
-		Assertions.assertEquals("medicationrequest=**** MEDICATIONREQUEST:**** medicationRequest-**** Medicationrequest/**** ", message);
+		Assertions.assertEquals("medicationrequest=**** MEDICATIONREQUEST:**** medicationRequest-**** Medicationrequest/**** /Medicationrequest?**** ", message);
 	}
 	
 	@Test
@@ -130,7 +130,7 @@ public class LogScrubbingTest {
 		logMessage(MASKMESSAGE_OBSERVATION);
 		JsonNode jsonNode = mapper.readTree(output.getAll());
 		String message = jsonNode.get("message").asText();
-		Assertions.assertEquals("observation=**** OBSERVATION:**** Observation-**** Observation/**** ", message);
+		Assertions.assertEquals("observation=**** OBSERVATION:**** Observation-**** Observation/**** /Observation?**** ", message);
 	}
 	@Test
 	void checkIfLoggingIsMaskedForIdToken(CapturedOutput output) throws JsonMappingException, JsonProcessingException {
@@ -155,7 +155,7 @@ public class LogScrubbingTest {
 		logMessage(MASKMESSAGE_AUTHORIZATION);
 		JsonNode jsonNode = mapper.readTree(output.getAll());
 		String message = jsonNode.get("message").asText();
-		Assertions.assertEquals("authorization=**** authorization:**** authorization-**** ", message);
+		Assertions.assertEquals("authorization=**** authorization:**** authorization-**** /authorization?**** ", message);
 	}
 
 	@Test
