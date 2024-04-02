@@ -33,19 +33,19 @@ pipeline {
     stage('Push') {
       steps {
         echo 'Pushing Docker Image'
-        sh 'docker run -v /var/run/docker.sock:/var/run/docker.sock $AWS_ENV $GIT_ENV cicd push hapi-fhir-jpaserver-starter-dev'
+        sh 'docker run -v /var/run/docker.sock:/var/run/docker.sock $AWS_ENV $GIT_ENV cicd push-image hapi-fhir-jpaserver-r4-dev dev latest'
       }
     }
     stage('Deploy') {
       steps {
         echo 'Deploying hapi-fhir-jpaserver-starter in dev'
-        sh 'docker run -v /var/run/docker.sock:/var/run/docker.sock $AWS_ENV $GIT_ENV cicd deploy hapi-fhir-jpaserver-starter-dev dev $GIT_COMMIT'
+        sh 'docker run -v /var/run/docker.sock:/var/run/docker.sock $AWS_ENV $GIT_ENV cicd update-service hapi-fhir-jpaserver-r4-dev dev'
         }
     }
     stage('Wait') {
       steps {
         echo 'Waiting for hapi-fhir-jpaserver-starter service to reach steady state'
-        sh 'docker run -v /var/run/docker.sock:/var/run/docker.sock $AWS_ENV $GIT_ENV cicd wait hapi-fhir-jpaserver-starter-dev dev'
+        sh 'docker run -v /var/run/docker.sock:/var/run/docker.sock $AWS_ENV $GIT_ENV cicd wait hapi-fhir-jpaserver-r4-dev dev'
         }
     }
     stage('Healthcheck') {
