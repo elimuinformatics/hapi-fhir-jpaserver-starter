@@ -26,7 +26,7 @@ pipeline {
     stage('Build') {
       steps {
         echo 'Building Docker Image'
-        sh 'docker build -t hapi-fhir-jpaserver-starter .'
+        sh 'docker build -t hapi-fhir-jpaserver-starter:latest .'
       }
     }
     stage('Push') {
@@ -44,7 +44,7 @@ pipeline {
     stage('Wait') {
       steps {
         echo 'Waiting for hapi-fhir-jpaserver-r4 service to reach steady state'
-        sh 'docker run -v /var/run/docker.sock:/var/run/docker.sock $AWS_ENV $GIT_ENV cicd wait hapi-fhir-jpaserver-r4 qa'
+        sh 'docker run -v /var/run/docker.sock:/var/run/docker.sock $AWS_ENV $GIT_ENV cicd wait hapi-fhir-jpaserver-r4-qa qa'
         }
     }
     stage('Healthcheck') {
