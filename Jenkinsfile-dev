@@ -33,7 +33,7 @@ pipeline {
     stage('Push') {
       steps {
         echo 'Pushing Docker Image'
-        sh 'docker run -v /var/run/docker.sock:/var/run/docker.sock $AWS_ENV $GIT_ENV cicd push-image hapi-fhir-jpaserver-r4-dev dev latest'
+        sh 'docker run -v /var/run/docker.sock:/var/run/docker.sock $AWS_ENV $GIT_ENV cicd push-image hapi-fhir-jpaserver-starter-dev dev latest'
       }
     }
     stage('Deploy') {
