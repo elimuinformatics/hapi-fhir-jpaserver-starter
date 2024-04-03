@@ -37,19 +37,19 @@ pipeline {
     }
     stage('Deploy') {
       steps {
-        echo 'Deploying hapi-fhir-jpaserver-r4 in qa'
+        echo 'Deploying to QA'
         sh 'docker run -v /var/run/docker.sock:/var/run/docker.sock $AWS_ENV $GIT_ENV cicd deploy hapi-fhir-jpaserver-r4 qa $GIT_COMMIT'
         }
     }
     stage('Wait') {
       steps {
-        echo 'Waiting for hapi-fhir-jpaserver-r4 service to reach steady state'
+        echo 'Waiting for QA service to reach steady state'
         sh 'docker run -v /var/run/docker.sock:/var/run/docker.sock $AWS_ENV $GIT_ENV cicd wait hapi-fhir-jpaserver-r4 qa'
         }
     }
     stage('Healthcheck') {
       steps {
-        echo 'Checking health of hapi-fhir-jpaserver-r4 service'
+        echo 'Checking health of QA service'
         sh 'curl -m 10 https://fhir4-qa.elimuinformatics.com/actuator/health'  
       }
     }
