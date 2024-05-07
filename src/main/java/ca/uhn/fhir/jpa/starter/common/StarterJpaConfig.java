@@ -453,18 +453,20 @@ public class StarterJpaConfig {
 			fhirServer.registerProviders(partitionManagementProvider);
 		}
 
-		// Support for OAuth2 and API_KEY authentication
+		// Support for OAuth 2.0 authentication
 		if (appProperties.getOauth().getEnabled()) {
 			fhirServer.registerInterceptor(new CapabilityStatementCustomizer(appProperties));
 			fhirServer.registerInterceptor(new CustomAuthorizationInterceptor(appProperties));
 			fhirServer.registerInterceptor(new CustomSearchNarrowingInterceptor(appProperties));
-			fhirServer.registerInterceptor(new SmartWellKnownInterceptor(appProperties));
 			FhirVersionEnum fhirVersion = fhirServer.getFhirContext().getVersion().getVersion();
 			if (fhirVersion != FhirVersionEnum.R5) {
 				// Utilize the consent interceptor to simulate a patient compartment for the Task resource
 				fhirServer.registerInterceptor(new ConsentInterceptor(new CustomConsentService(daoRegistry, appProperties)));
 			}
 		}
+
+		// Support for SMART on FHIR launchers
+		fhirServer.registerInterceptor(new SmartWellKnownInterceptor(appProperties));
 
 		repositoryValidatingInterceptor.ifPresent(fhirServer::registerInterceptor);
 
