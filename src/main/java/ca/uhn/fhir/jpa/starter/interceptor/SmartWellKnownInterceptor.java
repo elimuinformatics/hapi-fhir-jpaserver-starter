@@ -2,8 +2,8 @@ package ca.uhn.fhir.jpa.starter.interceptor;
 
 import java.io.IOException;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +25,7 @@ public class SmartWellKnownInterceptor {
   }
 
   @Hook(Pointcut.SERVER_INCOMING_REQUEST_PRE_PROCESSED)
-  public boolean processIncomingRequest(HttpServletRequest request, HttpServletResponse response) {
+  public boolean incomingRequestPreProcessed(HttpServletRequest request, HttpServletResponse response) {
     String uri = request.getRequestURI();
     if (uri.endsWith("/.well-known/smart-configuration")) {
       response.setContentType("application/json");
