@@ -113,6 +113,7 @@ public class FhirServerConfigCommon {
 		jpaStorageSettings.setSchedulingDisabled(!appProperties.getDao_scheduling_enabled());
 		jpaStorageSettings.setDeleteExpungeEnabled(appProperties.getDelete_expunge_enabled());
 		jpaStorageSettings.setExpungeEnabled(appProperties.getExpunge_enabled());
+		jpaStorageSettings.setLanguageSearchParameterEnabled(appProperties.getLanguage_search_parameter_enabled());
 		if (appProperties.getSubscription() != null
 				&& appProperties.getSubscription().getEmail() != null)
 			jpaStorageSettings.setEmailFromAddress(
@@ -152,6 +153,7 @@ public class FhirServerConfigCommon {
 		jpaStorageSettings.setFilterParameterEnabled(appProperties.getFilter_search_enabled());
 		jpaStorageSettings.setAdvancedHSearchIndexing(appProperties.getAdvanced_lucene_indexing());
 		jpaStorageSettings.setTreatBaseUrlsAsLocal(new HashSet<>(appProperties.getLocal_base_urls()));
+		jpaStorageSettings.setTreatReferencesAsLogical(new HashSet<>(appProperties.getLogical_urls()));
 
 		if (appProperties.getLastn_enabled()) {
 			jpaStorageSettings.setLastNEnabled(true);
@@ -185,6 +187,13 @@ public class FhirServerConfigCommon {
 		// Parallel Batch GET execution settings
 		jpaStorageSettings.setBundleBatchPoolSize(appProperties.getBundle_batch_pool_size());
 		jpaStorageSettings.setBundleBatchPoolSize(appProperties.getBundle_batch_pool_max_size());
+
+		if (appProperties.getMdm_enabled()) {
+			// MDM requires the subscription of type message
+			ourLog.info("Enabling message subscriptions");
+			jpaStorageSettings.addSupportedSubscriptionType(
+					org.hl7.fhir.dstu2.model.Subscription.SubscriptionChannelType.MESSAGE);
+		}
 
 		storageSettings(appProperties, jpaStorageSettings);
 		return jpaStorageSettings;
