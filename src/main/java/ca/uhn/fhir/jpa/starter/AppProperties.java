@@ -2,8 +2,8 @@ package ca.uhn.fhir.jpa.starter;
 
 
 import ca.uhn.fhir.context.FhirVersionEnum;
-import ca.uhn.fhir.jpa.api.config.JpaStorageSettings.IdStrategyEnum;
 import ca.uhn.fhir.jpa.api.config.JpaStorageSettings.ClientIdStrategyEnum;
+import ca.uhn.fhir.jpa.api.config.JpaStorageSettings.IdStrategyEnum;
 import ca.uhn.fhir.jpa.model.entity.NormalizedQuantitySearchLevel;
 import ca.uhn.fhir.jpa.packages.PackageInstallationSpec;
 import ca.uhn.fhir.rest.api.EncodingEnum;
@@ -66,8 +66,8 @@ public class AppProperties {
   private String server_address = null;
   private EncodingEnum default_encoding = EncodingEnum.JSON;
   private FhirVersionEnum fhir_version = FhirVersionEnum.R4;
-  private IdStrategyEnum id_strategy = IdStrategyEnum.SEQUENTIAL_NUMERIC;
   private ClientIdStrategyEnum client_id_strategy = ClientIdStrategyEnum.ALPHANUMERIC;
+  private IdStrategyEnum server_id_strategy = null;
   private List<String> supported_resource_types = new ArrayList<>();
   private List<Bundle.BundleType> allowed_bundle_types = null;
   private Boolean narrative_enabled = true;
@@ -102,12 +102,16 @@ public class AppProperties {
 
   private final List<String> custom_interceptor_classes = new ArrayList<>();
 
+	private final List<String> custom_provider_classes = new ArrayList<>();
 
 
 	public List<String> getCustomInterceptorClasses() {
     return custom_interceptor_classes;
   }
 
+	public List<String> getCustomProviderClasses() {
+		return custom_provider_classes;
+	}
 
 
 	public Boolean getOpenapi_enabled() {
@@ -279,14 +283,6 @@ public Cors getCors() {
     this.logger = logger;
   }
 
-  public IdStrategyEnum getId_strategy() {
-    return id_strategy;
-  }
-
-  public void setId_strategy(IdStrategyEnum id_strategy) {
-    this.id_strategy = id_strategy;
-  }
-
   public ClientIdStrategyEnum getClient_id_strategy() {
     return client_id_strategy;
   }
@@ -296,7 +292,15 @@ public Cors getCors() {
     this.client_id_strategy = client_id_strategy;
   }
 
-	public boolean getAdvanced_lucene_indexing() {
+  public IdStrategyEnum getServer_id_strategy() {
+    return server_id_strategy;
+  }
+
+  public void setServer_id_strategy(IdStrategyEnum server_id_strategy) {
+    this.server_id_strategy = server_id_strategy;
+  }
+
+  public boolean getAdvanced_lucene_indexing() {
 		return this.advanced_lucene_indexing;
 	}
 
