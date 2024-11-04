@@ -100,6 +100,8 @@ public class AppProperties {
   private final Set<String> local_base_urls = new HashSet<>();
   private final Set<String> logical_urls = new HashSet<>();
 
+  private Boolean resource_dbhistory_enabled = true;
+
   private final List<String> custom_interceptor_classes = new ArrayList<>();
 
 	private final List<String> custom_provider_classes = new ArrayList<>();
@@ -1080,4 +1082,12 @@ public Cors getCors() {
   public void setEnable_index_of_type(boolean enable_index_of_type) {
     this.enable_index_of_type = enable_index_of_type;
   }
+
+public Boolean getResource_dbhistory_enabled() {
+	return resource_dbhistory_enabled;
+}
+
+public void setResource_dbhistory_enabled(Boolean resource_dbhistory_enabled) {
+	this.resource_dbhistory_enabled = resource_dbhistory_enabled;
+}
 }
