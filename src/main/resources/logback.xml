@@ -1,8 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <configuration scan="true" scanPeriod="30 seconds">
+	<include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+	<!-- <include resource="org/springframework/boot/logging/logback/console-appender.xml" /> -->
 
-	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+	<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
 		<encoder class="net.logstash.logback.encoder.LogstashEncoder">
-		<includeMdcKeyName>X-Correlation-Id</includeMdcKeyName>
+			<includeMdcKeyName>X-Correlation-Id</includeMdcKeyName>
 			<fieldNames>
 				<timestamp>[ignore]</timestamp>
 				<version>[ignore]</version>
@@ -20,21 +23,14 @@
 					<value>(?i)(authorization[\/=:|-])(\"[^\"]*\"|[^\"\s]+)(.*?)(\"|)</value>
 					<value>(?i)(MedicationRequest[\/=:|-])(\"[^\"]*\"|[^\"\s]+)(.*?)(\"|)</value>
 					<value>(?i)(observation[\/=:|-])(\"[^\"]*\"|[^\"\s]+)(.*?)(\"|)</value>
-					<mask>$1****$3$4</mask>					
+					<mask>$1****$3$4</mask>
 				</valueMask>
 			</jsonGeneratorDecorator>
 		</encoder>
 	</appender>
 
-	<logger name="org.springframework.beans" level="INFO">
-		<appender-ref ref="STDOUT" />
-	</logger>
-	<logger name="org.springframework.core" level="INFO">
-		<appender-ref ref="STDOUT" />
-	</logger>
-
 	<root level="INFO">
-		<appender-ref ref="STDOUT" />
+		<appender-ref ref="CONSOLE" />
 	</root>
-
+	<logger name = "org.opencds.cqf.cql.engine.debug" level="DEBUG"/>
 </configuration>
