@@ -24,17 +24,17 @@ services:
       OAUTH_CLIENT_ID: fhir4-api
       OAUTH_USER_ROLE: fhir4-user
       OAUTH_ADMIN_ROLE: fhir4-admin
-      OAUTH_JWKS_URL: https://auth-stage.elimuinformatics.com/auth/realms/product/protocol/openid-connect/certs
-      OAUTH_AUTHORIZE_URL: https://auth-stage.elimuinformatics.com/auth/realms/product/protocol/openid-connect/auth
-      OAUTH_TOKEN_URL: https://auth-stage.elimuinformatics.com/auth/realms/product/protocol/openid-connect/token
-      OAUTH_MANAGE_URL: https://auth-stage.elimuinformatics.com/auth/realms/product/account
-      SMART_ISSUER: https://auth-stage.elimuinformatics.com/auth/realms/product
-      SMART_JWKS_URL: https://auth-stage.elimuinformatics.com/auth/realms/product/protocol/openid-connect/certs
-      SMART_AUTHORIZATION_URL: https://auth-stage.elimuinformatics.com/auth/realms/product/protocol/openid-connect/auth
-      SMART_TOKEN_URL: https://auth-stage.elimuinformatics.com/auth/realms/product/protocol/openid-connect/token
-      SMART_INTROSPECTION_URL: https://auth-stage.elimuinformatics.com/auth/realms/product/protocol/openid-connect/token/introspect
-      SMART_REVOCATION_URL: https://auth-stage.elimuinformatics.com/auth/realms/product/protocol/openid-connect/revoke
-      SMART_MANAGE_URL: https://auth-stage.elimuinformatics.com/auth/realms/product/account
+      OAUTH_JWKS_URL: http://keycloak-url/auth/realms/product/protocol/openid-connect/certs
+      OAUTH_AUTHORIZE_URL: http://keycloak-url/auth/realms/product/protocol/openid-connect/auth
+      OAUTH_TOKEN_URL: http://keycloak-url/auth/realms/product/protocol/openid-connect/token
+      OAUTH_MANAGE_URL: http://keycloak-url/auth/realms/product/account
+      SMART_ISSUER: http://keycloak-url/auth/realms/product
+      SMART_JWKS_URL: http://keycloak-url/auth/realms/product/protocol/openid-connect/certs
+      SMART_AUTHORIZATION_URL: http://keycloak-url/auth/realms/product/protocol/openid-connect/auth
+      SMART_TOKEN_URL: http://keycloak-url/auth/realms/product/protocol/openid-connect/token
+      SMART_INTROSPECTION_URL: http://keycloak-url/auth/realms/product/protocol/openid-connect/token/introspect
+      SMART_REVOCATION_URL: http://keycloak-url/auth/realms/product/protocol/openid-connect/revoke
+      SMART_MANAGE_URL: http://keycloak-url/auth/realms/product/account
     ports:
       - "8080:8080"
   # hapi-fhir-mysql:
