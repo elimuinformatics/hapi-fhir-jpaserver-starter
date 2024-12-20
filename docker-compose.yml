@@ -90,8 +90,6 @@ services:
     image: postgres:15
     container_name: keycloak-postgres
     restart: always
-    ports:
-      - "5432:5432"
     environment:
       POSTGRES_DB: 'keycloak'
       POSTGRES_USER: 'admin'
