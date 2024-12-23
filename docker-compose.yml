@@ -80,8 +80,6 @@ services:
     image: postgres:15-alpine
     container_name: hapi-fhir-postgres
     restart: always
-    ports:
-      - "5434:5432"
     environment:
       POSTGRES_DB: "hapi"
       POSTGRES_USER: "admin"
@@ -92,8 +90,6 @@ services:
     image: postgres:15
     container_name: keycloak-postgres
     restart: always
-    ports:
-      - "5435:5432"
     environment:
       POSTGRES_DB: 'keycloak'
       POSTGRES_USER: 'admin'
