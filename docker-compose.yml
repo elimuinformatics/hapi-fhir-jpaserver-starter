@@ -23,17 +23,17 @@ services:
       OAUTH_CLIENT_ID: fhir4-api
       OAUTH_USER_ROLE: fhir4-user
       OAUTH_ADMIN_ROLE: fhir4-admin
-      OAUTH_JWKS_URL: http://keycloak:8085/auth/realms/product/protocol/openid-connect/certs
-      OAUTH_AUTHORIZE_URL: http://keycloak:8085/auth/realms/product/protocol/openid-connect/auth
-      OAUTH_TOKEN_URL: http://keycloak:8085/auth/realms/product/protocol/openid-connect/token
-      OAUTH_MANAGE_URL: http://keycloak:8085/auth/realms/product/account
-      SMART_ISSUER: http://keycloak:8085/auth/realms/product
-      SMART_JWKS_URL: http://keycloak:8085/auth/realms/product/protocol/openid-connect/certs
-      SMART_AUTHORIZATION_URL: http://keycloak:8085/auth/realms/product/protocol/openid-connect/auth
-      SMART_TOKEN_URL: http://keycloak:8085/auth/realms/product/protocol/openid-connect/token
-      SMART_INTROSPECTION_URL: http://keycloak:8085/auth/realms/product/protocol/openid-connect/token/introspect
-      SMART_REVOCATION_URL: http://keycloak:8085/auth/realms/product/protocol/openid-connect/revoke
-      SMART_MANAGE_URL: http://keycloak:8085/auth/realms/product/account
+      OAUTH_JWKS_URL: https://auth-internal.elimuinformatics.com/auth/realms/product/protocol/openid-connect/certs
+      OAUTH_AUTHORIZE_URL: https://auth-internal.elimuinformatics.com/auth/realms/product/protocol/openid-connect/auth
+      OAUTH_TOKEN_URL: https://auth-internal.elimuinformatics.com/auth/realms/product/protocol/openid-connect/token
+      OAUTH_MANAGE_URL: https://auth-internal.elimuinformatics.com/auth/realms/product/account
+      SMART_ISSUER: https://auth-internal.elimuinformatics.com/auth/realms/product
+      SMART_JWKS_URL: https://auth-internal.elimuinformatics.com/auth/realms/product/protocol/openid-connect/certs
+      SMART_AUTHORIZATION_URL: https://auth-internal.elimuinformatics.com/auth/realms/product/protocol/openid-connect/auth
+      SMART_TOKEN_URL: https://auth-internal.elimuinformatics.com/auth/realms/product/protocol/openid-connect/token
+      SMART_INTROSPECTION_URL: https://auth-internal.elimuinformatics.com/auth/realms/product/protocol/openid-connect/token/introspect
+      SMART_REVOCATION_URL: https://auth-internal.elimuinformatics.com/auth/realms/product/protocol/openid-connect/revoke
+      SMART_MANAGE_URL: https://auth-internal.elimuinformatics.com/auth/realms/product/account
     ports:
       - "8080:8080"
   # hapi-fhir-mysql:
@@ -50,32 +50,6 @@ services:
   #     - '3306:3306'
   #   volumes:
   #     - hapi-fhir-mysql:/var/lib/mysql
-  hapi-fhir-keycloak:
-    image: quay.io/keycloak/keycloak:22.0.5
-    container_name: keycloak
-    restart: on-failure
-    ports:
-      - '8085:8085'
-    command:
-      - "start-dev"
-    environment:
-      KC_ADMIN: 'admin'
-      KC_ADMIN_PASSWORD: 'admin'
-      KC_DB: 'postgres'
-      KC_DB_URL_HOST: 'keycloak-postgres'
-      KC_DB_USERNAME: 'admin'
-      KC_DB_PASSWORD: 'admin'
-      KC_HEALTH_ENABLED: 'true'
-      KC_HOSTNAME: 'keycloak:8085'
-      KC_HOSTNAME_STRICT: 'false'
-      KC_HTTP_RELATIVE_PATH: '/auth'
-      KC_HTTP_ENABLED: 'true'
-      KC_LOG_LEVEL: 'INFO'
-      KC_METRICS_ENABLED: 'true'
-      KC_PROXY: 'edge'
-      PROXY_ADDRESS_FORWARDING: 'true'
-    depends_on:
-      - keycloak-postgres
   hapi-fhir-postgres:
     image: postgres:15-alpine
     container_name: hapi-fhir-postgres
@@ -86,18 +60,6 @@ services:
       POSTGRES_PASSWORD: "admin"
     volumes:
       - hapi-fhir-postgres:/var/lib/postgresql/data
-  keycloak-postgres:
-    image: postgres:15
-    container_name: keycloak-postgres
-    restart: always
-    environment:
-      POSTGRES_DB: 'keycloak'
-      POSTGRES_USER: 'admin'
-      POSTGRES_PASSWORD: 'admin'
-      POSTGRES_ROOT_PASSWORD: 'admin'
-    volumes:
-      - keycloak-postgres:/var/lib/postgresql/data
 volumes:
   # hapi-fhir-mysql:
   hapi-fhir-postgres:
-  keycloak-postgres:
