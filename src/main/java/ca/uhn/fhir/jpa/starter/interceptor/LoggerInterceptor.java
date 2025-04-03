@@ -2,9 +2,6 @@ package ca.uhn.fhir.jpa.starter.interceptor;
 
 import java.util.UUID;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-
 import org.apache.commons.lang3.ObjectUtils;
 import org.hl7.fhir.instance.model.api.IBaseResource;
 import org.slf4j.MDC;
@@ -15,11 +12,14 @@ import ca.uhn.fhir.interceptor.api.Pointcut;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.api.server.ResponseDetails;
 import ca.uhn.fhir.rest.server.servlet.ServletRequestDetails;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Interceptor
 public class LoggerInterceptor {
   private static final String X_CORRELATION_ID = "X-Correlation-Id";
-  private static final String X_LAUNCH_ID = "X-Launch-Id";
+	private static final String CORRELATION_ID = "correlationId";
+	private static final String X_LAUNCH_ID = "X-Launch-Id";
   private static final String X_APP_NAME = "X-App-Name";
   private static final String LAUNCH_ID = "launchId";
   private static final String APP = "app";
@@ -31,7 +31,7 @@ public class LoggerInterceptor {
 	 String correlationId = ObjectUtils.isNotEmpty(request.getHeader(X_CORRELATION_ID))
         ? request.getHeader(X_CORRELATION_ID)
         : UUID.randomUUID().toString();
-	MDC.put(X_CORRELATION_ID, correlationId);
+	MDC.put(CORRELATION_ID, correlationId);
 		putIfPresent(request, X_LAUNCH_ID, LAUNCH_ID);
 		putIfPresent(request, X_APP_NAME, APP);
 
@@ -49,7 +49,7 @@ public class LoggerInterceptor {
   public boolean outgoingResponse(RequestDetails requestDetails,
       ServletRequestDetails servletRequestDetails, IBaseResource resource, ResponseDetails responseDetails,
       HttpServletRequest request, HttpServletResponse response) {
-    response.addHeader(X_CORRELATION_ID, MDC.get(X_CORRELATION_ID));
+    response.addHeader(CORRELATION_ID, MDC.get(CORRELATION_ID));
 	  String launchId = MDC.get(LAUNCH_ID);
 	  if (launchId != null) {
 		  response.addHeader(LAUNCH_ID, launchId);
