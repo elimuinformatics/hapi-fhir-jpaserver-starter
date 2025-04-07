@@ -60,6 +60,6 @@ public class LoggerInterceptor {
   @Hook(Pointcut.SERVER_PROCESSING_COMPLETED)
   public void processingCompleted(RequestDetails requestDetails,
       ServletRequestDetails servletRequestDetails) {
-	  MDC.remove(CORRELATION_ID);
+	  MDC.clear();
   }
 }
