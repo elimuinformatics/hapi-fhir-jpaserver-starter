@@ -18,8 +18,8 @@ import jakarta.servlet.http.HttpServletResponse;
 @Interceptor
 public class LoggerInterceptor {
   private static final String X_CORRELATION_ID = "X-Correlation-Id";
-	private static final String CORRELATION_ID = "correlationId";
-	private static final String X_LAUNCH_ID = "X-Launch-Id";
+  private static final String CORRELATION_ID = "correlationId";
+  private static final String X_LAUNCH_ID = "X-Launch-Id";
   private static final String X_APP_NAME = "X-App-Name";
   private static final String LAUNCH_ID = "launchId";
   private static final String APP = "app";
@@ -60,6 +60,6 @@ public class LoggerInterceptor {
   @Hook(Pointcut.SERVER_PROCESSING_COMPLETED)
   public void processingCompleted(RequestDetails requestDetails,
       ServletRequestDetails servletRequestDetails) {
-	  MDC.clear();
+	  MDC.remove(CORRELATION_ID);
   }
 }
