@@ -46,9 +46,11 @@ public class EnvironmentHelper {
 				AvailableSettings.IMPLICIT_NAMING_STRATEGY, SpringImplicitNamingStrategy.class.getName());
 		properties.putIfAbsent(
 				AvailableSettings.PHYSICAL_NAMING_STRATEGY, CamelCaseToUnderscoresNamingStrategy.class.getName());
-		// TODO The bean factory should be added as parameter but that requires that it can be injected from the
+		// TODO The bean factory should be added as parameter but that requires that it can be injected
+		// from the
 		// entityManagerFactory bean from xBaseConfig
-		// properties.putIfAbsent(AvailableSettings.BEAN_CONTAINER, new SpringBeanContainer(beanFactory));
+		// properties.putIfAbsent(AvailableSettings.BEAN_CONTAINER, new
+		// SpringBeanContainer(beanFactory));
 
 		// hapi-fhir-jpaserver-base "sensible defaults"
 		Map<String, Object> hapiJpaPropertyMap = new HapiFhirLocalContainerEntityManagerFactoryBean(

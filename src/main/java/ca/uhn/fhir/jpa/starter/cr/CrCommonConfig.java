@@ -156,7 +156,8 @@ public class CrCommonConfig {
 	@Bean
 	CareGapsProperties careGapsProperties(CrProperties theCrProperties) {
 		var careGapsProperties = new CareGapsProperties();
-		// This check for the resource type really should be happening down in CR where the setting is actually used but
+		// This check for the resource type really should be happening down in CR where the setting is
+		// actually used but
 		// that will have to wait for a future CR release
 		careGapsProperties.setCareGapsReporter(
 				theCrProperties.getCareGaps().getReporter().replace("Organization/", ""));

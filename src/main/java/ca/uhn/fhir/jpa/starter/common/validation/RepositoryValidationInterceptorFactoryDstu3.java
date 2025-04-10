@@ -22,11 +22,11 @@ import java.util.stream.Collectors;
 import static ca.uhn.fhir.jpa.starter.common.validation.IRepositoryValidationInterceptorFactory.ENABLE_REPOSITORY_VALIDATING_INTERCEPTOR;
 
 /**
- * This class can be customized to enable the {@link RepositoryValidatingInterceptor}
- * on this server.
- * <p>
- * The <code>enable_repository_validating_interceptor</code> property must be enabled in <code>application.yaml</code>
- * in order to use this class.
+ * This class can be customized to enable the {@link RepositoryValidatingInterceptor} on this
+ * server.
+ *
+ * <p>The <code>enable_repository_validating_interceptor</code> property must be enabled in <code>
+ * application.yaml</code> in order to use this class.
  */
 @ConditionalOnProperty(prefix = "hapi.fhir", name = ENABLE_REPOSITORY_VALIDATING_INTERCEPTOR, havingValue = "true")
 @Configuration
@@ -46,8 +46,9 @@ public class RepositoryValidationInterceptorFactoryDstu3 implements IRepositoryV
 
 	public RepositoryValidatingInterceptor buildUsingStoredStructureDefinitions() {
 
-		IBundleProvider results = structureDefinitionResourceProvider.search(
-				new SearchParameterMap().setLoadSynchronous(true).add(StructureDefinition.SP_KIND, new TokenParam("resource")));
+		IBundleProvider results = structureDefinitionResourceProvider.search(new SearchParameterMap()
+				.setLoadSynchronous(true)
+				.add(StructureDefinition.SP_KIND, new TokenParam("resource")));
 		Map<String, List<StructureDefinition>> structureDefinitions = results.getResources(0, results.size()).stream()
 				.map(StructureDefinition.class::cast)
 				.collect(Collectors.groupingBy(StructureDefinition::getType));

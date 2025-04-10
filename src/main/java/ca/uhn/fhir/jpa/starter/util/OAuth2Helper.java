@@ -1,5 +1,25 @@
 package ca.uhn.fhir.jpa.starter.util;
 
+import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.context.RuntimeResourceDefinition;
+import ca.uhn.fhir.context.RuntimeSearchParam;
+import ca.uhn.fhir.rest.api.server.RequestDetails;
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.JWTVerifier;
+import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.exceptions.JWTVerificationException;
+import com.auth0.jwt.exceptions.TokenExpiredException;
+import com.auth0.jwt.interfaces.Claim;
+import com.auth0.jwt.interfaces.DecodedJWT;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.Validate;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
+
 import java.math.BigInteger;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
@@ -11,28 +31,6 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
-
-import org.apache.commons.lang3.ObjectUtils;
-import org.apache.commons.lang3.Validate;
-import org.json.JSONArray;
-import org.json.JSONObject;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
-
-import com.auth0.jwt.JWT;
-import com.auth0.jwt.JWTVerifier;
-import com.auth0.jwt.algorithms.Algorithm;
-import com.auth0.jwt.exceptions.JWTVerificationException;
-import com.auth0.jwt.exceptions.TokenExpiredException;
-import com.auth0.jwt.interfaces.Claim;
-import com.auth0.jwt.interfaces.DecodedJWT;
-
-import ca.uhn.fhir.context.FhirContext;
-import ca.uhn.fhir.context.RuntimeResourceDefinition;
-import ca.uhn.fhir.context.RuntimeSearchParam;
-import ca.uhn.fhir.rest.api.server.RequestDetails;
 
 public class OAuth2Helper {
 	private static final String BEARER_PREFIX = "BEARER ";
@@ -46,8 +44,9 @@ public class OAuth2Helper {
 		return auth.substring(BEARER_PREFIX.length());
 	}
 
-	public static void verify(DecodedJWT jwt, String jwksUrl) throws IllegalArgumentException,
-			NoSuchAlgorithmException, InvalidKeySpecException, TokenExpiredException, JWTVerificationException {
+	public static void verify(DecodedJWT jwt, String jwksUrl)
+			throws IllegalArgumentException, NoSuchAlgorithmException, InvalidKeySpecException, TokenExpiredException,
+					JWTVerificationException {
 		Validate.notNull(jwt, "jwt must not be null");
 		Validate.notBlank(jwksUrl, "jwksUrl must not be blank");
 		// TODO: storage of cached public keys need to be a map by kid. there may be more than 1.
@@ -62,8 +61,8 @@ public class OAuth2Helper {
 		verifier.verify(jwt);
 	}
 
-	public static RSAPublicKey getKey(String kid, String jwksUrl) throws RestClientException,
-			NoSuchAlgorithmException, InvalidKeySpecException {
+	public static RSAPublicKey getKey(String kid, String jwksUrl)
+			throws RestClientException, NoSuchAlgorithmException, InvalidKeySpecException {
 		Validate.notBlank(kid, "kid must not be blank");
 		Validate.notBlank(jwksUrl, "jwksUrl must not be blank");
 		RestTemplate restTemplate = new RestTemplate();
@@ -84,7 +83,7 @@ public class OAuth2Helper {
 		BigInteger n = new BigInteger(1, Base64.getUrlDecoder().decode(rawN));
 		KeyFactory kf = KeyFactory.getInstance("RSA");
 		RSAPublicKeySpec publicKeySpec = new RSAPublicKeySpec(n, e);
-		return (RSAPublicKey)kf.generatePublic(publicKeySpec);
+		return (RSAPublicKey) kf.generatePublic(publicKeySpec);
 	}
 
 	public static List<String> getClientRoles(DecodedJWT jwt, String clientId) {
@@ -92,7 +91,8 @@ public class OAuth2Helper {
 		Validate.notBlank(clientId, "clientId must not be blank");
 		Claim claim = jwt.getClaim("resource_access");
 		HashMap<String, HashMap<String, ArrayList<String>>> resources = claim.as(HashMap.class);
-		HashMap<String, ArrayList<String>> clientMap = resources.getOrDefault(clientId, new HashMap<String, ArrayList<String>>());
+		HashMap<String, ArrayList<String>> clientMap =
+				resources.getOrDefault(clientId, new HashMap<String, ArrayList<String>>());
 		return clientMap.getOrDefault("roles", new ArrayList<String>());
 	}
 
@@ -137,23 +137,23 @@ public class OAuth2Helper {
 		String alg = jwt.getAlgorithm();
 		switch (alg) {
 			case "HS256":
-				return Algorithm.HMAC256((String)publicKey);
+				return Algorithm.HMAC256((String) publicKey);
 			case "HS384":
-				return Algorithm.HMAC384((String)publicKey);
+				return Algorithm.HMAC384((String) publicKey);
 			case "HS512":
-				return Algorithm.HMAC512((String)publicKey);
+				return Algorithm.HMAC512((String) publicKey);
 			case "RS256":
-				return Algorithm.RSA256((RSAPublicKey)publicKey, null);
+				return Algorithm.RSA256((RSAPublicKey) publicKey, null);
 			case "RS384":
-				return Algorithm.RSA384((RSAPublicKey)publicKey, null);
+				return Algorithm.RSA384((RSAPublicKey) publicKey, null);
 			case "RS512":
-				return Algorithm.RSA512((RSAPublicKey)publicKey, null);
+				return Algorithm.RSA512((RSAPublicKey) publicKey, null);
 			case "ES256":
-				return Algorithm.ECDSA256((ECPublicKey)publicKey, null);
+				return Algorithm.ECDSA256((ECPublicKey) publicKey, null);
 			case "ES384":
-				return Algorithm.ECDSA384((ECPublicKey)publicKey, null);
+				return Algorithm.ECDSA384((ECPublicKey) publicKey, null);
 			case "ES512":
-				return Algorithm.ECDSA512((ECPublicKey)publicKey, null);
+				return Algorithm.ECDSA512((ECPublicKey) publicKey, null);
 			case "PS256":
 			case "PS384":
 			default:

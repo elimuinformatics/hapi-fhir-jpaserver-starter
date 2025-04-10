@@ -1,12 +1,9 @@
 package ca.uhn.fhir.jpa.starter.common;
 
 import ca.uhn.fhir.batch2.config.Batch2JobRegisterer;
-import ca.uhn.fhir.batch2.coordinator.JobDefinitionRegistry;
 import ca.uhn.fhir.batch2.jobs.export.BulkDataExportProvider;
 import ca.uhn.fhir.batch2.jobs.imprt.BulkDataImportProvider;
-import ca.uhn.fhir.batch2.jobs.reindex.ReindexJobParameters;
 import ca.uhn.fhir.batch2.jobs.reindex.ReindexProvider;
-import ca.uhn.fhir.batch2.model.JobDefinition;
 import ca.uhn.fhir.context.ConfigurationException;
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.context.FhirVersionEnum;
@@ -45,12 +42,12 @@ import ca.uhn.fhir.jpa.starter.AppProperties;
 import ca.uhn.fhir.jpa.starter.annotations.OnCorsPresent;
 import ca.uhn.fhir.jpa.starter.annotations.OnImplementationGuidesPresent;
 import ca.uhn.fhir.jpa.starter.common.validation.IRepositoryValidationInterceptorFactory;
+import ca.uhn.fhir.jpa.starter.ig.IImplementationGuideOperationProvider;
 import ca.uhn.fhir.jpa.starter.interceptor.CapabilityStatementCustomizer;
 import ca.uhn.fhir.jpa.starter.interceptor.CustomAuthorizationInterceptor;
 import ca.uhn.fhir.jpa.starter.interceptor.CustomConsentService;
 import ca.uhn.fhir.jpa.starter.interceptor.CustomSearchNarrowingInterceptor;
 import ca.uhn.fhir.jpa.starter.interceptor.SmartWellKnownInterceptor;
-import ca.uhn.fhir.jpa.starter.ig.IImplementationGuideOperationProvider;
 import ca.uhn.fhir.jpa.starter.util.EnvironmentHelper;
 import ca.uhn.fhir.jpa.subscription.util.SubscriptionDebugLogInterceptor;
 import ca.uhn.fhir.jpa.util.ResourceCountCache;
@@ -60,10 +57,10 @@ import ca.uhn.fhir.narrative.DefaultThymeleafNarrativeGenerator;
 import ca.uhn.fhir.narrative2.NullNarrativeGenerator;
 import ca.uhn.fhir.rest.api.IResourceSupportedSvc;
 import ca.uhn.fhir.rest.openapi.OpenApiInterceptor;
+import ca.uhn.fhir.rest.server.interceptor.consent.ConsentInterceptor;
 import ca.uhn.fhir.rest.server.interceptor.partition.RequestTenantPartitionInterceptor;
 import ca.uhn.fhir.rest.server.*;
 import ca.uhn.fhir.rest.server.interceptor.*;
-import ca.uhn.fhir.rest.server.interceptor.consent.ConsentInterceptor;
 import ca.uhn.fhir.rest.server.provider.ResourceProviderFactory;
 import ca.uhn.fhir.rest.server.tenant.UrlBaseTenantIdentificationStrategy;
 import ca.uhn.fhir.rest.server.util.ISearchParamRegistry;
@@ -119,8 +116,8 @@ public class StarterJpaConfig {
 	private ConfigurableEnvironment configurableEnvironment;
 
 	/**
-	 * Customize the default/max page sizes for search results. You can set these however
-	 * you want, although very large page sizes will require a lot of RAM.
+	 * Customize the default/max page sizes for search results. You can set these however you want,
+	 * although very large page sizes will require a lot of RAM.
 	 */
 	@Bean
 	public DatabaseBackedPagingProvider databaseBackedPagingProvider(AppProperties appProperties) {
@@ -143,11 +140,12 @@ public class StarterJpaConfig {
 	@Primary
 	@Bean
 	public LocalContainerEntityManagerFactoryBean entityManagerFactory(
-		DataSource myDataSource,
-		ConfigurableListableBeanFactory myConfigurableListableBeanFactory,
-		FhirContext theFhirContext, JpaStorageSettings theStorageSettings) {
-		LocalContainerEntityManagerFactoryBean retVal =
-				HapiEntityManagerFactoryUtil.newEntityManagerFactory(myConfigurableListableBeanFactory, theFhirContext, theStorageSettings);
+			DataSource myDataSource,
+			ConfigurableListableBeanFactory myConfigurableListableBeanFactory,
+			FhirContext theFhirContext,
+			JpaStorageSettings theStorageSettings) {
+		LocalContainerEntityManagerFactoryBean retVal = HapiEntityManagerFactoryUtil.newEntityManagerFactory(
+				myConfigurableListableBeanFactory, theFhirContext, theStorageSettings);
 		retVal.setPersistenceUnitName("HAPI_PU");
 
 		try {
@@ -199,9 +197,9 @@ public class StarterJpaConfig {
 	@Primary
 	@Conditional(OnImplementationGuidesPresent.class)
 	public IPackageInstallerSvc packageInstaller(
-		AppProperties appProperties,
-		IPackageInstallerSvc packageInstallerSvc,
-		Batch2JobRegisterer batch2JobRegisterer) {
+			AppProperties appProperties,
+			IPackageInstallerSvc packageInstallerSvc,
+			Batch2JobRegisterer batch2JobRegisterer) {
 
 		batch2JobRegisterer.start();
 
@@ -286,7 +284,8 @@ public class StarterJpaConfig {
 			IPackageInstallerSvc packageInstallerSvc,
 			ThreadSafeResourceDeleterSvc theThreadSafeResourceDeleterSvc,
 			ApplicationContext appContext,
-			Optional<IpsOperationProvider> theIpsOperationProvider, Optional<IImplementationGuideOperationProvider> implementationGuideOperationProvider) {
+			Optional<IpsOperationProvider> theIpsOperationProvider,
+			Optional<IImplementationGuideOperationProvider> implementationGuideOperationProvider) {
 		RestfulServer fhirServer = new RestfulServer(fhirSystemDao.getContext());
 
 		List<String> supportedResourceTypes = appProperties.getSupported_resource_types();
@@ -464,10 +463,12 @@ public class StarterJpaConfig {
 			fhirServer.registerInterceptor(new CapabilityStatementCustomizer(appProperties));
 			fhirServer.registerInterceptor(new CustomAuthorizationInterceptor(appProperties));
 			fhirServer.registerInterceptor(new CustomSearchNarrowingInterceptor(appProperties));
-			FhirVersionEnum fhirVersion = fhirServer.getFhirContext().getVersion().getVersion();
+			FhirVersionEnum fhirVersion =
+					fhirServer.getFhirContext().getVersion().getVersion();
 			if (fhirVersion != FhirVersionEnum.R5) {
 				// Utilize the consent interceptor to simulate a patient compartment for the Task resource
-				fhirServer.registerInterceptor(new ConsentInterceptor(new CustomConsentService(daoRegistry, appProperties)));
+				fhirServer.registerInterceptor(
+						new ConsentInterceptor(new CustomConsentService(daoRegistry, appProperties)));
 			}
 		}
 
@@ -484,7 +485,7 @@ public class StarterJpaConfig {
 			fhirServer.registerProvider(theIpsOperationProvider.get());
 		}
 
-		if (appProperties.getUserRequestRetryVersionConflictsInterceptorEnabled() ) {
+		if (appProperties.getUserRequestRetryVersionConflictsInterceptorEnabled()) {
 			fhirServer.registerInterceptor(new UserRequestRetryVersionConflictsInterceptor());
 		}
 
@@ -494,9 +495,7 @@ public class StarterJpaConfig {
 		return fhirServer;
 	}
 
-	/**
-	 * check the properties for custom interceptor classes and registers them.
-	 */
+	/** check the properties for custom interceptor classes and registers them. */
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private void registerCustomInterceptors(
 			RestfulServer fhirServer, ApplicationContext theAppContext, List<String> customInterceptorClasses) {
@@ -533,12 +532,10 @@ public class StarterJpaConfig {
 		}
 	}
 
-	/**
-	 * check the properties for custom provider classes and registers them.
-	 */
+	/** check the properties for custom provider classes and registers them. */
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private void registerCustomProviders(
-		RestfulServer fhirServer, ApplicationContext theAppContext, List<String> customProviderClasses) {
+			RestfulServer fhirServer, ApplicationContext theAppContext, List<String> customProviderClasses) {
 
 		if (customProviderClasses == null) {
 			return;

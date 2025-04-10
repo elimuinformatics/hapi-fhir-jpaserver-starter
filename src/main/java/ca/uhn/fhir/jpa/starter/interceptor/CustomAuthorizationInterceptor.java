@@ -1,16 +1,5 @@
 package ca.uhn.fhir.jpa.starter.interceptor;
 
-import java.security.GeneralSecurityException;
-import java.util.List;
-
-import org.hl7.fhir.r4.model.IdType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.auth0.jwt.JWT;
-import com.auth0.jwt.interfaces.DecodedJWT;
-import com.google.common.base.Strings;
-
 import ca.uhn.fhir.interceptor.api.Interceptor;
 import ca.uhn.fhir.jpa.starter.AppProperties;
 import ca.uhn.fhir.jpa.starter.util.OAuth2Helper;
@@ -21,6 +10,15 @@ import ca.uhn.fhir.rest.server.exceptions.AuthenticationException;
 import ca.uhn.fhir.rest.server.interceptor.auth.AuthorizationInterceptor;
 import ca.uhn.fhir.rest.server.interceptor.auth.IAuthRule;
 import ca.uhn.fhir.rest.server.interceptor.auth.RuleBuilder;
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.interfaces.DecodedJWT;
+import com.google.common.base.Strings;
+import org.hl7.fhir.r4.model.IdType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.security.GeneralSecurityException;
+import java.util.List;
 
 @Interceptor
 public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
@@ -62,17 +60,12 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 	}
 
 	private List<IAuthRule> authorizedRule() {
-		return new RuleBuilder()
-			.allowAll()
-			.build();
+		return new RuleBuilder().allowAll().build();
 	}
 
 	private List<IAuthRule> unauthorizedRule() {
 		// By default, deny everything except the metadata request
-		return new RuleBuilder()
-			.allow().metadata().andThen()
-			.denyAll()
-			.build();
+		return new RuleBuilder().allow().metadata().andThen().denyAll().build();
 	}
 
 	private List<IAuthRule> authorizeOAuth(RequestDetails theRequest) throws AuthenticationException {
@@ -103,14 +96,15 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 					logger.debug("No patient claim specified in authorization token");
 					return authorizedRule();
 				} else {
-					logger.debug("Patient claim specified in in authorization token; will use patient compartment rules");
+					logger.debug(
+							"Patient claim specified in in authorization token; will use patient compartment rules");
 					return authorizedInPatientCompartmentRule(theRequest, patientId);
 				}
 			}
 
 			logger.warn("Authorization failure - token doesn't have the required client roles");
 			return unauthorizedRule();
-		} catch (RuntimeException|GeneralSecurityException e) {
+		} catch (RuntimeException | GeneralSecurityException e) {
 			logger.warn("Authentication failure - unable to decode or verify token: {}", e.getMessage());
 			throw new AuthenticationException("Invalid authorization header", e);
 		}
@@ -120,13 +114,32 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 		if (OAuth2Helper.canBeInPatientCompartment(theRequestDetails.getResourceName())) {
 			IdType patientIdType = new IdType("Patient", patientId);
 			return new RuleBuilder()
-				.allow().read().allResources().inCompartment("Patient", patientIdType).andThen()
-				.allow().patch().allRequests().andThen()
-				.allow().write().allResources().inCompartment("Patient", patientIdType).andThen()
-				.allow().delete().allResources().inCompartment("Patient", patientIdType).andThen()
-				.allow().transaction().withAnyOperation().andApplyNormalRules().andThen()
-				.denyAll()
-				.build();
+					.allow()
+					.read()
+					.allResources()
+					.inCompartment("Patient", patientIdType)
+					.andThen()
+					.allow()
+					.patch()
+					.allRequests()
+					.andThen()
+					.allow()
+					.write()
+					.allResources()
+					.inCompartment("Patient", patientIdType)
+					.andThen()
+					.allow()
+					.delete()
+					.allResources()
+					.inCompartment("Patient", patientIdType)
+					.andThen()
+					.allow()
+					.transaction()
+					.withAnyOperation()
+					.andApplyNormalRules()
+					.andThen()
+					.denyAll()
+					.build();
 		}
 		return authorizedRule();
 	}

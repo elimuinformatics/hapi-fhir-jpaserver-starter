@@ -27,9 +27,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 import java.util.HashSet;
 import java.util.stream.Collectors;
 
-/**
- * This is the primary configuration file for the example server
- */
+/** This is the primary configuration file for the example server */
 @Configuration
 @EnableTransactionManagement
 public class FhirServerConfigCommon {
@@ -37,21 +35,26 @@ public class FhirServerConfigCommon {
 	private static final org.slf4j.Logger ourLog = org.slf4j.LoggerFactory.getLogger(FhirServerConfigCommon.class);
 
 	public FhirServerConfigCommon(AppProperties appProperties) {
-		ourLog.info("Server configured to " + (appProperties.getAllow_contains_searches() ? "allow" : "deny")
+		ourLog.info("Server configured to "
+				+ (appProperties.getAllow_contains_searches() ? "allow" : "deny")
 				+ " contains searches");
-		ourLog.info("Server configured to " + (appProperties.getAllow_multiple_delete() ? "allow" : "deny")
+		ourLog.info("Server configured to "
+				+ (appProperties.getAllow_multiple_delete() ? "allow" : "deny")
 				+ " multiple deletes");
-		ourLog.info("Server configured to " + (appProperties.getAllow_external_references() ? "allow" : "deny")
+		ourLog.info("Server configured to "
+				+ (appProperties.getAllow_external_references() ? "allow" : "deny")
 				+ " external references");
-		ourLog.info("Server configured to " + (appProperties.getDao_scheduling_enabled() ? "enable" : "disable")
+		ourLog.info("Server configured to "
+				+ (appProperties.getDao_scheduling_enabled() ? "enable" : "disable")
 				+ " DAO scheduling");
-		ourLog.info("Server configured to " + (appProperties.getDelete_expunge_enabled() ? "enable" : "disable")
+		ourLog.info("Server configured to "
+				+ (appProperties.getDelete_expunge_enabled() ? "enable" : "disable")
 				+ " delete expunges");
 		ourLog.info(
 				"Server configured to " + (appProperties.getExpunge_enabled() ? "enable" : "disable") + " expunges");
-		ourLog.info(
-				"Server configured to " + (appProperties.getAllow_override_default_search_params() ? "allow" : "deny")
-						+ " overriding default search params");
+		ourLog.info("Server configured to "
+				+ (appProperties.getAllow_override_default_search_params() ? "allow" : "deny")
+				+ " overriding default search params");
 		ourLog.info("Server configured to "
 				+ (appProperties.getAuto_create_placeholder_reference_targets() ? "allow" : "disable")
 				+ " auto-creating placeholder references");
@@ -62,7 +65,9 @@ public class FhirServerConfigCommon {
 		if (appProperties.getSubscription().getEmail() != null) {
 			AppProperties.Subscription.Email email =
 					appProperties.getSubscription().getEmail();
-			ourLog.info("Server is configured to enable email with host '" + email.getHost() + "' and port "
+			ourLog.info("Server is configured to enable email with host '"
+					+ email.getHost()
+					+ "' and port "
 					+ email.getPort());
 			ourLog.info("Server will use '" + email.getFrom() + "' as the from email address");
 
@@ -87,7 +92,9 @@ public class FhirServerConfigCommon {
 			ourLog.info("Indexed on contained resource enabled");
 		}
 
-		ourLog.info("Server configured to {} OAuth2 authentication", appProperties.getOauth().getEnabled() ? "enable" : "disable");
+		ourLog.info(
+				"Server configured to {} OAuth2 authentication",
+				appProperties.getOauth().getEnabled() ? "enable" : "disable");
 	}
 
 	@Bean
@@ -96,37 +103,35 @@ public class FhirServerConfigCommon {
 		if (appProperties.getSubscription() != null) {
 			if (appProperties.getSubscription().getEmail() != null)
 				subscriptionSettings.setEmailFromAddress(
-					appProperties.getSubscription().getEmail().getFrom());
+						appProperties.getSubscription().getEmail().getFrom());
 
 			// Subscriptions are enabled by channel type
 			if (appProperties.getSubscription().getResthook_enabled()) {
 				ourLog.info("Enabling REST-hook subscriptions");
 				subscriptionSettings.addSupportedSubscriptionType(
-					org.hl7.fhir.dstu2.model.Subscription.SubscriptionChannelType.RESTHOOK);
+						org.hl7.fhir.dstu2.model.Subscription.SubscriptionChannelType.RESTHOOK);
 			}
 			if (appProperties.getSubscription().getEmail() != null) {
 				ourLog.info("Enabling email subscriptions");
 				subscriptionSettings.addSupportedSubscriptionType(
-					org.hl7.fhir.dstu2.model.Subscription.SubscriptionChannelType.EMAIL);
+						org.hl7.fhir.dstu2.model.Subscription.SubscriptionChannelType.EMAIL);
 			}
 			if (appProperties.getSubscription().getWebsocket_enabled()) {
 				ourLog.info("Enabling websocket subscriptions");
 				subscriptionSettings.addSupportedSubscriptionType(
-					org.hl7.fhir.dstu2.model.Subscription.SubscriptionChannelType.WEBSOCKET);
+						org.hl7.fhir.dstu2.model.Subscription.SubscriptionChannelType.WEBSOCKET);
 			}
-
 		}
 		if (appProperties.getMdm_enabled()) {
 			// MDM requires the subscription of type message
 			ourLog.info("Enabling message subscriptions");
 			subscriptionSettings.addSupportedSubscriptionType(
-				org.hl7.fhir.dstu2.model.Subscription.SubscriptionChannelType.MESSAGE);
+					org.hl7.fhir.dstu2.model.Subscription.SubscriptionChannelType.MESSAGE);
 		}
 		return subscriptionSettings;
 	}
-	/**
-	 * Configure FHIR properties around the JPA server via this bean
-	 */
+
+	/** Configure FHIR properties around the JPA server via this bean */
 	@Bean
 	public JpaStorageSettings jpaStorageSettings(AppProperties appProperties) {
 		JpaStorageSettings jpaStorageSettings = new JpaStorageSettings();
@@ -137,8 +142,7 @@ public class FhirServerConfigCommon {
 						: StorageSettings.IndexEnabledEnum.DISABLED);
 		jpaStorageSettings.setAutoCreatePlaceholderReferenceTargets(
 				appProperties.getAuto_create_placeholder_reference_targets());
-		jpaStorageSettings.setMassIngestionMode(
-				appProperties.getMass_ingestion_mode_enabled());
+		jpaStorageSettings.setMassIngestionMode(appProperties.getMass_ingestion_mode_enabled());
 		jpaStorageSettings.setAutoVersionReferenceAtPaths(appProperties.getAuto_version_reference_at_paths());
 		jpaStorageSettings.setEnforceReferentialIntegrityOnWrite(
 				appProperties.getEnforce_referential_integrity_on_write());
@@ -151,7 +155,8 @@ public class FhirServerConfigCommon {
 		jpaStorageSettings.setDeleteExpungeEnabled(appProperties.getDelete_expunge_enabled());
 		jpaStorageSettings.setExpungeEnabled(appProperties.getExpunge_enabled());
 		jpaStorageSettings.setLanguageSearchParameterEnabled(appProperties.getLanguage_search_parameter_enabled());
-		jpaStorageSettings.setValidateResourceStatusForPackageUpload(appProperties.getValidate_resource_status_for_package_upload());
+		jpaStorageSettings.setValidateResourceStatusForPackageUpload(
+				appProperties.getValidate_resource_status_for_package_upload());
 		jpaStorageSettings.setIndexOnUpliftedRefchains(appProperties.getUpliftedRefchains_enabled());
 
 		if (!appProperties.getSearch_prefetch_thresholds().isEmpty()) {
@@ -169,8 +174,6 @@ public class FhirServerConfigCommon {
 
 		Long retainCachedSearchesMinutes = appProperties.getRetain_cached_searches_mins();
 		jpaStorageSettings.setExpireSearchResultsAfterMillis(retainCachedSearchesMinutes * 60 * 1000);
-
-
 
 		jpaStorageSettings.setFilterParameterEnabled(appProperties.getFilter_search_enabled());
 		jpaStorageSettings.setAdvancedHSearchIndexing(appProperties.getAdvanced_lucene_indexing());
@@ -204,22 +207,26 @@ public class FhirServerConfigCommon {
 		// Set and/or recommend default Server ID Strategy of UUID when using the ANY Client ID Strategy
 		if (appProperties.getClient_id_strategy() == JpaStorageSettings.ClientIdStrategyEnum.ANY) {
 			if (appProperties.getServer_id_strategy() == null) {
-				ourLog.info("Defaulting server to use '" + JpaStorageSettings.IdStrategyEnum.UUID
-						+ "' Server ID Strategy when using the '" + JpaStorageSettings.ClientIdStrategyEnum.ANY
+				ourLog.info("Defaulting server to use '"
+						+ JpaStorageSettings.IdStrategyEnum.UUID
+						+ "' Server ID Strategy when using the '"
+						+ JpaStorageSettings.ClientIdStrategyEnum.ANY
 						+ "' Client ID Strategy");
 				appProperties.setServer_id_strategy(JpaStorageSettings.IdStrategyEnum.UUID);
 			} else if (appProperties.getServer_id_strategy() != JpaStorageSettings.IdStrategyEnum.UUID) {
-				ourLog.warn("WARNING: '" + JpaStorageSettings.IdStrategyEnum.UUID
+				ourLog.warn("WARNING: '"
+						+ JpaStorageSettings.IdStrategyEnum.UUID
 						+ "' Server ID Strategy is highly recommended when using the '"
-						+ JpaStorageSettings.ClientIdStrategyEnum.ANY + "' Client ID Strategy");
+						+ JpaStorageSettings.ClientIdStrategyEnum.ANY
+						+ "' Client ID Strategy");
 			}
 		}
 		if (appProperties.getServer_id_strategy() != null) {
 			jpaStorageSettings.setResourceServerIdStrategy(appProperties.getServer_id_strategy());
 			ourLog.info("Server configured to use '" + appProperties.getServer_id_strategy() + "' Server ID Strategy");
 		}
-		
-		//to Disable the Resource History
+
+		// to Disable the Resource History
 		jpaStorageSettings.setResourceDbHistoryEnabled(appProperties.getResource_dbhistory_enabled());
 
 		// Parallel Batch GET execution settings
@@ -250,7 +257,7 @@ public class FhirServerConfigCommon {
 				retVal.setAllowReferencesAcrossPartitions(CrossPartitionReferenceMode.NOT_ALLOWED);
 			}
 			retVal.setConditionalCreateDuplicateIdentifiersEnabled(
-				appProperties.getPartitioning().getConditional_create_duplicate_identifiers_enabled());
+					appProperties.getPartitioning().getConditional_create_duplicate_identifiers_enabled());
 		}
 
 		return retVal;
