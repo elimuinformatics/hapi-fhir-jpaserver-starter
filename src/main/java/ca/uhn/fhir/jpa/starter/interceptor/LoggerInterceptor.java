@@ -61,7 +61,7 @@ public class LoggerInterceptor {
   public void processingCompleted(RequestDetails requestDetails,
       ServletRequestDetails servletRequestDetails) {
 	  MDC.remove(CORRELATION_ID);
-    MDC.remove(LAUNCH_ID);
-    MDC.remove(APP);
+	  MDC.remove(LAUNCH_ID);
+	  MDC.remove(APP);
   }
 }
