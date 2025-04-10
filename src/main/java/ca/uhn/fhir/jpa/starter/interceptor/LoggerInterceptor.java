@@ -28,7 +28,7 @@ public class LoggerInterceptor {
   @Hook(Pointcut.SERVER_INCOMING_REQUEST_PRE_PROCESSED)
   public boolean incomingRequestPreProcessed(HttpServletRequest request,
       HttpServletResponse response) {
-	 String correlationId = ObjectUtils.isNotEmpty(request.getHeader(X_CORRELATION_ID))
+    String correlationId = ObjectUtils.isNotEmpty(request.getHeader(X_CORRELATION_ID))
         ? request.getHeader(X_CORRELATION_ID)
         : UUID.randomUUID().toString();
 	MDC.put(CORRELATION_ID, correlationId);
@@ -60,8 +60,8 @@ public class LoggerInterceptor {
   @Hook(Pointcut.SERVER_PROCESSING_COMPLETED)
   public void processingCompleted(RequestDetails requestDetails,
       ServletRequestDetails servletRequestDetails) {
-	  MDC.remove(CORRELATION_ID);
-	  MDC.remove(LAUNCH_ID);
-	  MDC.remove(APP);
+    MDC.remove(CORRELATION_ID);
+    MDC.remove(LAUNCH_ID);
+    MDC.remove(APP);
   }
 }
