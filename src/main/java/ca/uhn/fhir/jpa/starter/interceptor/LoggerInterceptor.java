@@ -31,7 +31,7 @@ public class LoggerInterceptor {
     String correlationId = ObjectUtils.isNotEmpty(request.getHeader(X_CORRELATION_ID))
         ? request.getHeader(X_CORRELATION_ID)
         : UUID.randomUUID().toString();
-	MDC.put(CORRELATION_ID, correlationId);
+    MDC.put(CORRELATION_ID, correlationId);
 		putIfPresent(request, X_LAUNCH_ID, LAUNCH_ID);
 		putIfPresent(request, X_APP_NAME, APP);
 
@@ -60,8 +60,8 @@ public class LoggerInterceptor {
   @Hook(Pointcut.SERVER_PROCESSING_COMPLETED)
   public void processingCompleted(RequestDetails requestDetails,
       ServletRequestDetails servletRequestDetails) {
-    MDC.remove(CORRELATION_ID);
-    MDC.remove(LAUNCH_ID);
-    MDC.remove(APP);
+	  MDC.remove(CORRELATION_ID);
+     MDC.remove(LAUNCH_ID);
+     MDC.remove(APP);
   }
 }
