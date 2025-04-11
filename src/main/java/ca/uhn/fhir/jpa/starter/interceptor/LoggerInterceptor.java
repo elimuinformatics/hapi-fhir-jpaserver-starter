@@ -24,7 +24,6 @@ public class LoggerInterceptor {
   private static final String LAUNCH_ID = "launchId";
   private static final String APP = "app";
 
-
   @Hook(Pointcut.SERVER_INCOMING_REQUEST_PRE_PROCESSED)
   public boolean incomingRequestPreProcessed(HttpServletRequest request,
       HttpServletResponse response) {
@@ -32,8 +31,8 @@ public class LoggerInterceptor {
         ? request.getHeader(X_CORRELATION_ID)
         : UUID.randomUUID().toString();
     MDC.put(CORRELATION_ID, correlationId);
-   putIfPresent(request, X_LAUNCH_ID, LAUNCH_ID);
-   putIfPresent(request, X_APP_NAME, APP);
+    putIfPresent(request, X_LAUNCH_ID, LAUNCH_ID);
+    putIfPresent(request, X_APP_NAME, APP);
 
     return true;
   }
@@ -61,7 +60,7 @@ public class LoggerInterceptor {
   public void processingCompleted(RequestDetails requestDetails,
       ServletRequestDetails servletRequestDetails) {
     MDC.remove(CORRELATION_ID);
-     MDC.remove(LAUNCH_ID);
-     MDC.remove(APP);
+    MDC.remove(LAUNCH_ID);
+    MDC.remove(APP);
   }
 }
