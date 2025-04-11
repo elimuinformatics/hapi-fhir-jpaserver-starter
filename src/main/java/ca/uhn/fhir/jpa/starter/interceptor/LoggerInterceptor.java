@@ -38,12 +38,12 @@ public class LoggerInterceptor {
 		return true;
   }
 
-	private void putIfPresent(HttpServletRequest request, String headerName, String mdcKey) {
-		String headerValue = request.getHeader(headerName);
+  private void putIfPresent(HttpServletRequest request, String headerName, String mdcKey) {
+	  String headerValue = request.getHeader(headerName);
 		if (ObjectUtils.isNotEmpty(headerValue)) {
 			MDC.put(mdcKey, headerValue);
 		}
-	}
+  }
 
   @Hook(Pointcut.SERVER_OUTGOING_RESPONSE)
   public boolean outgoingResponse(RequestDetails requestDetails,
