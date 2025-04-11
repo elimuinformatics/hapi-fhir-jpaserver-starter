@@ -32,17 +32,17 @@ public class LoggerInterceptor {
         ? request.getHeader(X_CORRELATION_ID)
         : UUID.randomUUID().toString();
     MDC.put(CORRELATION_ID, correlationId);
-		putIfPresent(request, X_LAUNCH_ID, LAUNCH_ID);
-		putIfPresent(request, X_APP_NAME, APP);
+   putIfPresent(request, X_LAUNCH_ID, LAUNCH_ID);
+   putIfPresent(request, X_APP_NAME, APP);
 
-		return true;
+    return true;
   }
 
   private void putIfPresent(HttpServletRequest request, String headerName, String mdcKey) {
-	  String headerValue = request.getHeader(headerName);
-		if (ObjectUtils.isNotEmpty(headerValue)) {
-			MDC.put(mdcKey, headerValue);
-		}
+    String headerValue = request.getHeader(headerName);
+    if (ObjectUtils.isNotEmpty(headerValue)) {
+      MDC.put(mdcKey, headerValue);
+    }
   }
 
   @Hook(Pointcut.SERVER_OUTGOING_RESPONSE)
@@ -50,17 +50,17 @@ public class LoggerInterceptor {
       ServletRequestDetails servletRequestDetails, IBaseResource resource, ResponseDetails responseDetails,
       HttpServletRequest request, HttpServletResponse response) {
     response.addHeader(CORRELATION_ID, MDC.get(CORRELATION_ID));
-	  String launchId = MDC.get(LAUNCH_ID);
-	  if (launchId != null) {
-		  response.addHeader(LAUNCH_ID, launchId);
-	  }
-	  return true;
+    String launchId = MDC.get(LAUNCH_ID);
+    if (launchId != null) {
+      response.addHeader(LAUNCH_ID, launchId);
+    }
+    return true;
   }
 
   @Hook(Pointcut.SERVER_PROCESSING_COMPLETED)
   public void processingCompleted(RequestDetails requestDetails,
       ServletRequestDetails servletRequestDetails) {
-	  MDC.remove(CORRELATION_ID);
+    MDC.remove(CORRELATION_ID);
      MDC.remove(LAUNCH_ID);
      MDC.remove(APP);
   }
