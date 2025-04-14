@@ -16,7 +16,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 @Interceptor
-public class LoggerInterceptor {
+public class CorrelationIdInterceptor {
   private static final String X_CORRELATION_ID = "X-Correlation-Id";
   private static final String CORRELATION_ID = "correlationId";
   private static final String X_LAUNCH_ID = "X-Launch-Id";
