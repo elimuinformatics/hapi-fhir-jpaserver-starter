@@ -206,7 +206,7 @@ public class OAuthConsentService implements IConsentService {
 
   private boolean isPatchRequestBodyValid(RequestDetails theRequestDetails, String patientId) {
     String contentType = theRequestDetails.getHeader("content-type");
-    if (contentType.equalsIgnoreCase("application/json-patch+json")) {
+    if ("application/json-patch+json".equalsIgnoreCase(contentType)) {
       return isJsonPatchRequestBodyValid(theRequestDetails, patientId);
     }
 

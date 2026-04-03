@@ -393,7 +393,7 @@ class OAuthConsentServiceTest {
 	}
 
 	@Test
-	void startOperation_patch_missingContentType_runtimeExceptionPropagates() {
+	void startOperation_patch_missingContentType_rejects() {
 		when(myRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.PATCH);
 		when(myRequestDetails.getHeader("content-type")).thenReturn(null);
 		when(myResourceDao.read(any(), any(RequestDetails.class))).thenReturn(createTaskForPatient("123"));
@@ -402,7 +402,8 @@ class OAuthConsentServiceTest {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getClaimAsString(myRequestDetails, "patient")).thenReturn("123");
 
-			assertThrows(RuntimeException.class, () -> myConsentService.startOperation(myRequestDetails, myConsentContextServices));
+			ConsentOutcome outcome = myConsentService.startOperation(myRequestDetails, myConsentContextServices);
+			assertEquals(ConsentOutcome.REJECT, outcome);
 		}
 	}
 
