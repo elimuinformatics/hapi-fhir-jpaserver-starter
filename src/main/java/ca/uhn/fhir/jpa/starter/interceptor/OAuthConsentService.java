@@ -6,7 +6,6 @@ import static com.jayway.jsonpath.Filter.filter;
 import java.util.List;
 
 import org.hl7.fhir.instance.model.api.IBaseResource;
-import org.hl7.fhir.r4.model.IdType;
 import org.hl7.fhir.r4.model.Property;
 import org.hl7.fhir.r4.model.Reference;
 import org.hl7.fhir.r4.model.Resource;
@@ -34,12 +33,12 @@ import ca.uhn.fhir.rest.server.interceptor.consent.IConsentService;
  * For resources in the patient compartment, the authorization interceptor handles it.
  */
 @Service
-public class CustomConsentService implements IConsentService {
-  private static final Logger logger = LoggerFactory.getLogger(CustomConsentService.class);
+public class OAuthConsentService implements IConsentService {
+  private static final Logger logger = LoggerFactory.getLogger(OAuthConsentService.class);
   private final DaoRegistry daoRegistry;
   private final AppProperties config;
 
-  public CustomConsentService(DaoRegistry daoRegistry, AppProperties config) {
+  public OAuthConsentService(DaoRegistry daoRegistry, AppProperties config) {
     this.daoRegistry = daoRegistry;
     this.config = config;
   }
