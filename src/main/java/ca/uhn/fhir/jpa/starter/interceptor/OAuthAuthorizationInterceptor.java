@@ -23,12 +23,13 @@ import ca.uhn.fhir.rest.server.interceptor.auth.IAuthRule;
 import ca.uhn.fhir.rest.server.interceptor.auth.RuleBuilder;
 
 @Interceptor
-public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
-	private static final Logger logger = LoggerFactory.getLogger(CustomAuthorizationInterceptor.class);
+public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
+	private static final Logger logger = LoggerFactory.getLogger(OAuthAuthorizationInterceptor.class);
+	private static final String PATIENT_RESOURCE = "Patient";
 
 	private final AppProperties config;
 
-	public CustomAuthorizationInterceptor(AppProperties config) {
+	public OAuthAuthorizationInterceptor(AppProperties config) {
 		super();
 		this.config = config;
 	}
@@ -51,7 +52,7 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 		} catch (AuthenticationException e) {
 			throw e;
 		} catch (RuntimeException e) {
-			logger.error("Unexpected exception during authorization: {}", e.getMessage());
+			logger.error("Unexpected exception during authorization", e);
 		}
 
 		throw new AuthenticationException("Missing or invalid authorization");
@@ -110,20 +111,23 @@ public class CustomAuthorizationInterceptor extends AuthorizationInterceptor {
 
 			logger.warn("Authorization failure - token doesn't have the required client roles");
 			return unauthorizedRule();
-		} catch (RuntimeException|GeneralSecurityException e) {
-			logger.warn("Authentication failure - unable to decode or verify token: {}", e.getMessage());
-			throw new AuthenticationException("Invalid authorization header", e);
+		} catch (GeneralSecurityException e) {
+			logger.warn("Authentication failure - unable to verify token signature", e);
+			throw new AuthenticationException("Invalid authorization header: token verification failed - " + e.getMessage(), e);
+		} catch (RuntimeException e) {
+			logger.warn("Authentication failure - unable to decode token", e);
+			throw new AuthenticationException("Invalid authorization header: token parsing failed - " + e.getMessage(), e);
 		}
 	}
 
 	private List<IAuthRule> authorizedInPatientCompartmentRule(RequestDetails theRequestDetails, String patientId) {
 		if (OAuth2Helper.canBeInPatientCompartment(theRequestDetails.getResourceName())) {
-			IdType patientIdType = new IdType("Patient", patientId);
+			IdType patientIdType = new IdType(PATIENT_RESOURCE, patientId);
 			return new RuleBuilder()
-				.allow().read().allResources().inCompartment("Patient", patientIdType).andThen()
+				.allow().read().allResources().inCompartment(PATIENT_RESOURCE, patientIdType).andThen()
 				.allow().patch().allRequests().andThen()
-				.allow().write().allResources().inCompartment("Patient", patientIdType).andThen()
-				.allow().delete().allResources().inCompartment("Patient", patientIdType).andThen()
+				.allow().write().allResources().inCompartment(PATIENT_RESOURCE, patientIdType).andThen()
+				.allow().delete().allResources().inCompartment(PATIENT_RESOURCE, patientIdType).andThen()
 				.allow().transaction().withAnyOperation().andApplyNormalRules().andThen()
 				.denyAll()
 				.build();

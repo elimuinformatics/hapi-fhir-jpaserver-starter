@@ -45,10 +45,10 @@ import ca.uhn.fhir.jpa.starter.AppProperties;
 import ca.uhn.fhir.jpa.starter.annotations.OnCorsPresent;
 import ca.uhn.fhir.jpa.starter.annotations.OnImplementationGuidesPresent;
 import ca.uhn.fhir.jpa.starter.common.validation.IRepositoryValidationInterceptorFactory;
-import ca.uhn.fhir.jpa.starter.interceptor.CapabilityStatementCustomizer;
-import ca.uhn.fhir.jpa.starter.interceptor.CustomAuthorizationInterceptor;
-import ca.uhn.fhir.jpa.starter.interceptor.CustomConsentService;
-import ca.uhn.fhir.jpa.starter.interceptor.CustomSearchNarrowingInterceptor;
+import ca.uhn.fhir.jpa.starter.interceptor.OAuthCapabilityStatementCustomizer;
+import ca.uhn.fhir.jpa.starter.interceptor.OAuthAuthorizationInterceptor;
+import ca.uhn.fhir.jpa.starter.interceptor.OAuthConsentService;
+import ca.uhn.fhir.jpa.starter.interceptor.OAuthSearchNarrowingInterceptor;
 import ca.uhn.fhir.jpa.starter.interceptor.SmartWellKnownInterceptor;
 import ca.uhn.fhir.jpa.starter.ig.IImplementationGuideOperationProvider;
 import ca.uhn.fhir.jpa.starter.util.EnvironmentHelper;
@@ -461,13 +461,13 @@ public class StarterJpaConfig {
 
 		// Support for OAuth 2.0 authentication
 		if (appProperties.getOauth().getEnabled()) {
-			fhirServer.registerInterceptor(new CapabilityStatementCustomizer(appProperties));
-			fhirServer.registerInterceptor(new CustomAuthorizationInterceptor(appProperties));
-			fhirServer.registerInterceptor(new CustomSearchNarrowingInterceptor(appProperties));
+			fhirServer.registerInterceptor(new OAuthCapabilityStatementCustomizer(appProperties));
+			fhirServer.registerInterceptor(new OAuthAuthorizationInterceptor(appProperties));
+			fhirServer.registerInterceptor(new OAuthSearchNarrowingInterceptor(appProperties));
 			FhirVersionEnum fhirVersion = fhirServer.getFhirContext().getVersion().getVersion();
 			if (fhirVersion != FhirVersionEnum.R5) {
 				// Utilize the consent interceptor to simulate a patient compartment for the Task resource
-				fhirServer.registerInterceptor(new ConsentInterceptor(new CustomConsentService(daoRegistry, appProperties)));
+				fhirServer.registerInterceptor(new ConsentInterceptor(new OAuthConsentService(daoRegistry, appProperties)));
 			}
 		}
 

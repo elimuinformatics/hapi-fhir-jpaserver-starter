@@ -13,11 +13,11 @@ import ca.uhn.fhir.rest.server.interceptor.auth.AuthorizedList;
 import ca.uhn.fhir.rest.server.interceptor.auth.SearchNarrowingInterceptor;
 
 @Interceptor
-public class CustomSearchNarrowingInterceptor extends SearchNarrowingInterceptor {
-  private static final Logger logger = LoggerFactory.getLogger(CustomSearchNarrowingInterceptor.class);
+public class OAuthSearchNarrowingInterceptor extends SearchNarrowingInterceptor {
+  private static final Logger logger = LoggerFactory.getLogger(OAuthSearchNarrowingInterceptor.class);
   private final AppProperties config;
 
-	public CustomSearchNarrowingInterceptor(AppProperties config) {
+	public OAuthSearchNarrowingInterceptor(AppProperties config) {
 		super();
 		this.config = config;
 	}
