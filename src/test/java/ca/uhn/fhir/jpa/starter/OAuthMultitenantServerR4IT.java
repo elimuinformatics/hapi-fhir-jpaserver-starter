@@ -323,9 +323,24 @@ class OAuthMultitenantServerR4IT {
         .andParameter(ProviderConstants.PARTITION_MANAGEMENT_PARTITION_NAME, new CodeType(tenantName))
         .withAdditionalHeader(HttpHeaders.AUTHORIZATION, bearer(adminToken))
         .execute();
-    } catch (RuntimeException e) {
-      // Partition may already exist.
+    } catch (BaseServerResponseException e) {
+      if (isAlreadyExistsPartitionError(e)) {
+        return;
+      }
+      throw e;
     }
+  }
+
+  private boolean isAlreadyExistsPartitionError(BaseServerResponseException e) {
+    if (e.getStatusCode() == 409) {
+      return true;
+    }
+    String message = e.getMessage();
+    return e.getStatusCode() == 400
+      && message != null
+      && (message.contains("HAPI-1309")
+      || message.contains("already defined")
+      || message.contains("already exists"));
   }
 
   private AuditEvent createAuditEvent(AuditEvent event, String token) {
