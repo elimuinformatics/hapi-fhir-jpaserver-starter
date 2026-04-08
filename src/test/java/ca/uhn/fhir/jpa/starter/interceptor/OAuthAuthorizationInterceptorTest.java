@@ -196,6 +196,44 @@ class OAuthAuthorizationInterceptorTest {
 	}
 
 	@Test
+	void buildRuleList_auditEventPostSearch_userRole_isUnauthorized() {
+		when(myRequestDetails.getResourceName()).thenReturn("AuditEvent");
+		when(myRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.POST);
+		when(myRequestDetails.getRequestPath()).thenReturn("AuditEvent/_search");
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
+			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
+			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("user-role"));
+			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
+
+			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
+			assertRuleListMatches(rules, unauthorizedRules());
+		}
+	}
+
+	@Test
+	void buildRuleList_auditEventPostSearch_adminRole_allowsAll() {
+		when(myRequestDetails.getResourceName()).thenReturn("AuditEvent");
+		when(myRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.POST);
+		when(myRequestDetails.getRequestPath()).thenReturn("AuditEvent/_search");
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
+			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
+			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
+			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
+
+			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
+			assertRuleListMatches(rules, allowAllRules());
+		}
+	}
+
+	@Test
 	void buildRuleList_auditEventGet_userRole_isUnauthorized() {
 		when(myRequestDetails.getResourceName()).thenReturn("AuditEvent");
 		when(myRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.GET);
