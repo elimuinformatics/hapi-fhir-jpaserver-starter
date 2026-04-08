@@ -51,6 +51,7 @@ import ca.uhn.fhir.rest.api.CacheControlDirective;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
 import ca.uhn.fhir.rest.client.interceptor.UrlTenantSelectionInterceptor;
+import ca.uhn.fhir.rest.server.exceptions.BaseServerResponseException;
 import ca.uhn.fhir.rest.server.provider.ProviderConstants;
 
 @ExtendWith(SpringExtension.class)
@@ -147,9 +148,7 @@ class OAuthMultitenantServerR4IT {
     ourTenantInterceptor.setTenantId(TENANT_A);
     createAuditEvent(buildRosterLaunchAuditEvent(), myUserToken);
 
-    RuntimeException userReadFailure = assertThrows(RuntimeException.class,
-      () -> searchAuditEventCount(myUserToken));
-    assertTrue(userReadFailure.getMessage().contains("403"));
+    assertForbidden(() -> searchAuditEventCount(myUserToken));
   }
 
   @Test
@@ -166,9 +165,7 @@ class OAuthMultitenantServerR4IT {
     ourTenantInterceptor.setTenantId(TENANT_A);
     createAuditEvent(buildRosterLaunchAuditEvent(), myUserToken);
 
-    RuntimeException historyFailure = assertThrows(RuntimeException.class,
-      () -> historyAuditEventCount(myUserToken));
-    assertTrue(historyFailure.getMessage().contains("403"));
+    assertForbidden(() -> historyAuditEventCount(myUserToken));
   }
 
   @Test
@@ -183,10 +180,9 @@ class OAuthMultitenantServerR4IT {
   void auditEvent_readDenied_forNonAdminRole() {
     ourTenantInterceptor.setTenantId(TENANT_A);
     AuditEvent created = createAuditEvent(buildRosterLaunchAuditEvent(), myUserToken);
+    String auditEventId = created.getIdElement().toUnqualifiedVersionless().getValue();
 
-    RuntimeException userReadFailure = assertThrows(RuntimeException.class,
-      () -> readAuditEvent(created.getIdElement().toUnqualifiedVersionless().getValue(), myUserToken));
-    assertTrue(userReadFailure.getMessage().contains("403"));
+    assertForbidden(() -> readAuditEvent(auditEventId, myUserToken));
   }
 
   @Test
@@ -202,62 +198,40 @@ class OAuthMultitenantServerR4IT {
   void auditEvent_putDenied_forNonAdminRole() {
     ourTenantInterceptor.setTenantId(TENANT_A);
     AuditEvent created = createAuditEvent(buildRosterLaunchAuditEvent(), myUserToken);
+    String auditEventId = created.getIdElement().toUnqualifiedVersionless().getValue();
     AuditEvent replacement = buildRosterLaunchAuditEvent();
-    replacement.setId(created.getIdElement().toUnqualifiedVersionless().getValue());
+    replacement.setId(auditEventId);
 
-    RuntimeException updateFailure = assertThrows(RuntimeException.class,
-      () -> ourClient
-        .update()
-        .resource(replacement)
-        .withId(created.getIdElement().toUnqualifiedVersionless().getValue())
-        .withAdditionalHeader(HttpHeaders.AUTHORIZATION, bearer(myUserToken))
-        .execute());
-    assertTrue(updateFailure.getMessage().contains("403"));
+    assertForbidden(() -> updateAuditEvent(auditEventId, replacement, myUserToken));
   }
 
   @Test
   void auditEvent_putDenied_forAdminRole() {
     ourTenantInterceptor.setTenantId(TENANT_A);
     AuditEvent created = createAuditEvent(buildRosterLaunchAuditEvent(), myUserToken);
+    String auditEventId = created.getIdElement().toUnqualifiedVersionless().getValue();
     AuditEvent replacement = buildRosterLaunchAuditEvent();
-    replacement.setId(created.getIdElement().toUnqualifiedVersionless().getValue());
+    replacement.setId(auditEventId);
 
-    RuntimeException updateFailure = assertThrows(RuntimeException.class,
-      () -> ourClient
-        .update()
-        .resource(replacement)
-        .withId(created.getIdElement().toUnqualifiedVersionless().getValue())
-        .withAdditionalHeader(HttpHeaders.AUTHORIZATION, bearer(myAdminToken))
-        .execute());
-    assertTrue(updateFailure.getMessage().contains("403"));
+    assertForbidden(() -> updateAuditEvent(auditEventId, replacement, myAdminToken));
   }
 
   @Test
   void auditEvent_deleteDenied_forNonAdminRole() {
     ourTenantInterceptor.setTenantId(TENANT_A);
     AuditEvent created = createAuditEvent(buildRosterLaunchAuditEvent(), myUserToken);
+    String auditEventId = created.getIdElement().toUnqualifiedVersionless().getValue();
 
-    RuntimeException deleteFailure = assertThrows(RuntimeException.class,
-      () -> ourClient
-        .delete()
-        .resourceById(new IdType(created.getIdElement().toUnqualifiedVersionless().getValue()))
-        .withAdditionalHeader(HttpHeaders.AUTHORIZATION, bearer(myUserToken))
-        .execute());
-    assertTrue(deleteFailure.getMessage().contains("403"));
+    assertForbidden(() -> deleteAuditEvent(auditEventId, myUserToken));
   }
 
   @Test
   void auditEvent_deleteDenied_forAdminRole() {
     ourTenantInterceptor.setTenantId(TENANT_A);
     AuditEvent created = createAuditEvent(buildRosterLaunchAuditEvent(), myUserToken);
+    String auditEventId = created.getIdElement().toUnqualifiedVersionless().getValue();
 
-    RuntimeException deleteFailure = assertThrows(RuntimeException.class,
-      () -> ourClient
-        .delete()
-        .resourceById(new IdType(created.getIdElement().toUnqualifiedVersionless().getValue()))
-        .withAdditionalHeader(HttpHeaders.AUTHORIZATION, bearer(myAdminToken))
-        .execute());
-    assertTrue(deleteFailure.getMessage().contains("403"));
+    assertForbidden(() -> deleteAuditEvent(auditEventId, myAdminToken));
   }
 
   @Test
@@ -370,6 +344,28 @@ class OAuthMultitenantServerR4IT {
       .withId(id)
       .withAdditionalHeader(HttpHeaders.AUTHORIZATION, bearer(token))
       .execute();
+  }
+
+  private void updateAuditEvent(String id, AuditEvent replacement, String token) {
+    ourClient
+      .update()
+      .resource(replacement)
+      .withId(id)
+      .withAdditionalHeader(HttpHeaders.AUTHORIZATION, bearer(token))
+      .execute();
+  }
+
+  private void deleteAuditEvent(String id, String token) {
+    ourClient
+      .delete()
+      .resourceById(new IdType(id))
+      .withAdditionalHeader(HttpHeaders.AUTHORIZATION, bearer(token))
+      .execute();
+  }
+
+  private void assertForbidden(org.junit.jupiter.api.function.Executable executable) {
+    BaseServerResponseException failure = assertThrows(BaseServerResponseException.class, executable);
+    assertEquals(403, failure.getStatusCode());
   }
 
   private int searchAuditEventCount(String token) {
