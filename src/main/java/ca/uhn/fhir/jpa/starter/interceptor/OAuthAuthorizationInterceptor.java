@@ -26,6 +26,8 @@ import ca.uhn.fhir.rest.server.interceptor.auth.RuleBuilder;
 public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 	private static final Logger logger = LoggerFactory.getLogger(OAuthAuthorizationInterceptor.class);
 	private static final String PATIENT_RESOURCE = "Patient";
+	private static final String AUDIT_EVENT_RESOURCE = "AuditEvent";
+	private static final String SEARCH_PATH_SUFFIX = "/_search";
 
 	private final AppProperties config;
 
@@ -99,6 +101,10 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 			}
 
 			if (clientRoles.contains(getOAuthAdminRole()) || clientRoles.contains(getOAuthUserRole())) {
+				if (isAuditEventRequest(theRequest)) {
+					return authorizeAuditEventRequest(theRequest, clientRoles);
+				}
+
 				String patientId = OAuth2Helper.getClaimAsString(jwt, "patient");
 				if (Strings.isNullOrEmpty(patientId)) {
 					logger.debug("No patient claim specified in authorization token");
@@ -118,6 +124,30 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 			logger.warn("Authentication failure - unable to decode token", e);
 			throw new AuthenticationException("Invalid authorization header: token parsing failed - " + e.getMessage(), e);
 		}
+	}
+
+	private List<IAuthRule> authorizeAuditEventRequest(RequestDetails theRequest, List<String> clientRoles) {
+		RequestTypeEnum requestType = theRequest.getRequestType();
+		boolean isPostSearch = isAuditEventPostSearchRequest(theRequest);
+		if (requestType == RequestTypeEnum.POST && !isPostSearch) {
+			return authorizedRule();
+		}
+		if ((requestType == RequestTypeEnum.GET || isPostSearch) && clientRoles.contains(getOAuthAdminRole())) {
+			return authorizedRule();
+		}
+		logger.warn("Authorization failure - disallowed AuditEvent request type: {}", requestType);
+		return unauthorizedRule();
+	}
+
+	private boolean isAuditEventRequest(RequestDetails theRequest) {
+		return AUDIT_EVENT_RESOURCE.equalsIgnoreCase(theRequest.getResourceName());
+	}
+
+	private boolean isAuditEventPostSearchRequest(RequestDetails theRequest) {
+		String requestPath = theRequest.getRequestPath();
+		return theRequest.getRequestType() == RequestTypeEnum.POST
+			&& requestPath != null
+			&& requestPath.endsWith(SEARCH_PATH_SUFFIX);
 	}
 
 	private List<IAuthRule> authorizedInPatientCompartmentRule(RequestDetails theRequestDetails, String patientId) {

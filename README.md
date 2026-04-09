@@ -39,6 +39,16 @@ This will run the docker image with the default configuration, mapping port 8080
 
 If you change the mapped port, you need to change the configuration used by HAPI to have the correct `hapi.fhir.tester` property/value.
 
+### Fork release tags (this repository)
+
+This fork's container workflow is triggered by Git tags matching `image/v*` (see `.github/workflows/build-images.yaml`). To keep upstream version lineage clear while preserving the existing automation, use tags such as:
+
+- `image/v7.6.0-elimu.1`
+- `image/v7.6.0-elimu.2`
+- `image/v7.6.1-elimu.1`
+
+This format continues to work with the current workflow and publishes Docker images to the configured Docker Hub repository.
+
 ### Configuration via environment variables
 
 You can customize HAPI directly from the `run` command using environment variables. For example:
