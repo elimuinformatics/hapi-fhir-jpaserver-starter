@@ -4,21 +4,12 @@ services:
     container_name: hapi-fhir-jpaserver-start
     restart: on-failure
     environment:
-      fhir_version: 'R4'
+      SPRING_CONFIG_LOCATION: "classpath:/application-custom.yaml"
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://hapi-fhir-postgres:5432/hapi"
       SPRING_DATASOURCE_USERNAME: "admin"
       SPRING_DATASOURCE_PASSWORD: "admin"
-      SPRING_CONFIG_LOCATION: "classpath:/application-custom.yaml"
-
-      # Enable these for MySQL
-      # SPRING_DATASOURCE_URL: "jdbc:mysql://hapi-fhir-mysql:3306/hapi"
-      # SPRING_DATASOURCE_DRIVERCLASSNAME: com.mysql.jdbc.Driver
-      # SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: "org.hibernate.dialect.HapiFhirMySQLDialect"
-
-      # Enable these for PostgreSQL
-      SPRING_DATASOURCE_URL: "jdbc:postgresql://hapi-fhir-postgres:5432/hapi"
       SPRING_DATASOURCE_DRIVERCLASSNAME: "org.postgresql.Driver"
       SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: "ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgresDialect"
-
       OAUTH_ENABLED: true
       OAUTH_CLIENT_ID: fhir4-api
       OAUTH_USER_ROLE: fhir4-user
@@ -36,20 +27,6 @@ services:
       SMART_MANAGE_URL: http://keycloak:8085/auth/realms/product/account
     ports:
       - "8080:8080"
-  # hapi-fhir-mysql:
-  #   platform: linux/x86_64
-  #   image: mysql:5.7
-  #   container_name: hapi-fhir-mysql
-  #   restart: always
-  #   environment:
-  #     MYSQL_DATABASE: "hapi"
-  #     MYSQL_USER: "admin"
-  #     MYSQL_PASSWORD: "admin"
-  #     MYSQL_ROOT_PASSWORD: "admin"
-  #   ports:
-  #     - '3306:3306'
-  #   volumes:
-  #     - hapi-fhir-mysql:/var/lib/mysql
   hapi-fhir-keycloak:
     image: quay.io/keycloak/keycloak:22.0.5
     container_name: keycloak
@@ -102,6 +79,5 @@ services:
     volumes:
       - hapi-fhir-keycloak-postgres:/var/lib/postgresql/data
 volumes:
-  # hapi-fhir-mysql:
   hapi-fhir-postgres:
   hapi-fhir-keycloak-postgres:
