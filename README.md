@@ -45,7 +45,7 @@ This fork's container workflow is triggered by Git tags matching `image/v*` (see
 
 - `image/v7.6.0-elimu.1`
 - `image/v7.6.0-elimu.2`
-- `image/v7.6.1-elimu.1`
+- `image/v8.0.0-elimu.1`
 
 This format continues to work with the current workflow and publishes Docker images to the configured Docker Hub repository.
 

@@ -60,6 +60,7 @@ import ca.uhn.fhir.rest.server.provider.ProviderConstants;
   "hapi.fhir.fhir_version=r4",
   "hapi.fhir.cr_enabled=false",
   "hapi.fhir.partitioning.partitioning_include_in_search_hashes=false",
+  "hapi.fhir.partitioning.request_tenant_partitioning_mode=true",
   "hapi.fhir.oauth.enabled=true",
   "hapi.fhir.oauth.client_id=client-a",
   "hapi.fhir.oauth.user_role=user-role",

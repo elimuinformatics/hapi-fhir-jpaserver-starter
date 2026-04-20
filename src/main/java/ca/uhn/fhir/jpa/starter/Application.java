@@ -49,24 +49,22 @@ public class Application extends SpringBootServletInitializer {
 		// UI is now accessible at http://localhost:8080/
 	}
 
-
 	@Autowired
 	AutowireCapableBeanFactory beanFactory;
 
-  @Autowired
-  AppProperties appProperties;
+	@Autowired
+	AppProperties appProperties;
 
-  @Bean
-  @Conditional(OnEitherVersion.class)
-  public ServletRegistrationBean hapiServletRegistration(RestfulServer restfulServer) {
-    String serverPath = appProperties.getServer_path();
-    ServletRegistrationBean servletRegistrationBean = new ServletRegistrationBean();
-    beanFactory.autowireBean(restfulServer);
-    servletRegistrationBean.setServlet(restfulServer);
-    servletRegistrationBean.addUrlMappings(serverPath + "/*");
-    servletRegistrationBean.setLoadOnStartup(1);
+	@Bean
+	@Conditional(OnEitherVersion.class)
+	public ServletRegistrationBean hapiServletRegistration(RestfulServer restfulServer) {
+		String serverPath = appProperties.getServer_path();
+		ServletRegistrationBean servletRegistrationBean = new ServletRegistrationBean();
+		beanFactory.autowireBean(restfulServer);
+		servletRegistrationBean.setServlet(restfulServer);
+		servletRegistrationBean.addUrlMappings(serverPath + "/*");
+		servletRegistrationBean.setLoadOnStartup(1);
 
 		return servletRegistrationBean;
 	}
-
 }
