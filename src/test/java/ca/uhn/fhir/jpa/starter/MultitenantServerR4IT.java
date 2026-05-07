@@ -1,11 +1,13 @@
 package ca.uhn.fhir.jpa.starter;
 
 import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.interceptor.api.IInterceptorService;
 import ca.uhn.fhir.rest.api.CacheControlDirective;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
 import ca.uhn.fhir.rest.client.interceptor.LoggingInterceptor;
 import ca.uhn.fhir.rest.client.interceptor.UrlTenantSelectionInterceptor;
+import ca.uhn.fhir.rest.server.interceptor.partition.RequestTenantPartitionInterceptor;
 import ca.uhn.fhir.rest.server.provider.ProviderConstants;
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.CodeType;
@@ -15,11 +17,13 @@ import org.hl7.fhir.r4.model.Patient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = {Application.class}, properties =
@@ -40,6 +44,21 @@ class MultitenantServerR4IT {
 	private FhirContext ourCtx;
 	@LocalServerPort
 	private int port;
+
+	@Autowired
+	private IInterceptorService myInterceptorService;
+
+	/**
+	 * Regression: in tenant-partitioning mode the partition interceptor must be
+	 * registered on the global IInterceptorService — not just the RestfulServer —
+	 * so batch2 background workers (bulk export, reindex, etc.) can resolve a
+	 * partition. Without it, ExpandResourceAndWriteBinaryStep throws HAPI-1319
+	 * for STORAGE_PARTITION_IDENTIFY_ANY/READ.
+	 */
+	@Test
+	void tenantPartitionInterceptorIsRegisteredOnGlobalInterceptorService() {
+		assertTrue(myInterceptorService.hasRegisteredInterceptor(RequestTenantPartitionInterceptor.class));
+	}
 
 	@Test
 	void testCreateAndReadInTenantA() {

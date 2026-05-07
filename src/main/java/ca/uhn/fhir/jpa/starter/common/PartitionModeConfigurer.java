@@ -1,6 +1,7 @@
 package ca.uhn.fhir.jpa.starter.common;
 
 import ca.uhn.fhir.context.FhirContext;
+import ca.uhn.fhir.interceptor.api.IInterceptorService;
 import ca.uhn.fhir.jpa.interceptor.PatientIdPartitionInterceptor;
 import ca.uhn.fhir.jpa.model.config.PartitionSettings;
 import ca.uhn.fhir.jpa.partition.PartitionManagementProvider;
@@ -33,6 +34,9 @@ public class PartitionModeConfigurer {
 	private RestfulServer myRestfulServer;
 
 	@Autowired
+	private IInterceptorService myInterceptorService;
+
+	@Autowired
 	private PartitionManagementProvider myPartitionManagementProvider;
 
 	@PostConstruct
@@ -46,7 +50,12 @@ public class PartitionModeConfigurer {
 				myPartitionSettings.setUnnamedPartitionMode(true);
 			} else if (myAppProperties.getPartitioning().getRequest_tenant_partitioning_mode() == Boolean.TRUE) {
 				ourLog.info("Partitioning mode enabled in: Request tenant partitioning mode");
-				myRestfulServer.registerInterceptor(new RequestTenantPartitionInterceptor());
+				RequestTenantPartitionInterceptor tenantInterceptor = new RequestTenantPartitionInterceptor();
+				myRestfulServer.registerInterceptor(tenantInterceptor);
+				// Also register on the global interceptor service so batch2 background
+				// workers (bulk export, reindex, etc.) can resolve partitions — they
+				// consult the global IInterceptorBroadcaster, not the RestfulServer registry.
+				myInterceptorService.registerInterceptor(tenantInterceptor);
 				myRestfulServer.setTenantIdentificationStrategy(new UrlBaseTenantIdentificationStrategy());
 			}
 
