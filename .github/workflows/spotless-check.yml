@@ -2,8 +2,9 @@ name: mvn spotless:check (Formatting)
 
 
 on:
-  pull_request:
-    types: [opened, reopened, synchronize]
+  workflow_dispatch:
+  # pull_request:
+  #   types: [opened, reopened, synchronize]
 
 jobs:
   format-check:
