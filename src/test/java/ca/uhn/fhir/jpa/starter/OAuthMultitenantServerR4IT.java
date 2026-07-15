@@ -64,7 +64,8 @@ import ca.uhn.fhir.rest.server.provider.ProviderConstants;
   "hapi.fhir.oauth.enabled=true",
   "hapi.fhir.oauth.client_id=client-a",
   "hapi.fhir.oauth.user_role=user-role",
-  "hapi.fhir.oauth.admin_role=admin-role"
+  "hapi.fhir.oauth.admin_role=admin-role",
+  "hapi.fhir.oauth.audit_role=audit-api-role"
 })
 class OAuthMultitenantServerR4IT {
 
@@ -92,6 +93,7 @@ class OAuthMultitenantServerR4IT {
 
   private IGenericClient ourClient;
   private String myAdminToken;
+  private String myAuditToken;
   private String myUserToken;
 
   @LocalServerPort
@@ -115,6 +117,7 @@ class OAuthMultitenantServerR4IT {
 
     myAdminToken = tokenForRoles(List.of("admin-role"));
     myUserToken = tokenForRoles(List.of("user-role"));
+    myAuditToken = tokenForRoles(List.of("audit-api-role"));
     ensureTenantExists(1, TENANT_A, myAdminToken);
     ensureTenantExists(2, TENANT_B, myAdminToken);
   }
@@ -170,11 +173,11 @@ class OAuthMultitenantServerR4IT {
   }
 
   @Test
-  void auditEvent_historyAllowed_forAdminRole() {
+  void auditEvent_historyAllowed_forAuditRole() {
     ourTenantInterceptor.setTenantId(TENANT_A);
-    createAuditEvent(buildRosterLaunchAuditEvent(), myUserToken);
+    createAuditEvent(buildRosterLaunchAuditEvent(), myAuditToken);
 
-    assertTrue(historyAuditEventCount(myAdminToken) > 0);
+    assertTrue(historyAuditEventCount(myAuditToken) > 0);
   }
 
   @Test
@@ -187,11 +190,11 @@ class OAuthMultitenantServerR4IT {
   }
 
   @Test
-  void auditEvent_readAllowed_forAdminRole() {
+  void auditEvent_readAllowed_forAuditRole() {
     ourTenantInterceptor.setTenantId(TENANT_A);
-    AuditEvent created = createAuditEvent(buildRosterLaunchAuditEvent(), myUserToken);
+    AuditEvent created = createAuditEvent(buildRosterLaunchAuditEvent(), myAuditToken);
 
-    AuditEvent persisted = readAuditEvent(created.getIdElement().toUnqualifiedVersionless().getValue(), myAdminToken);
+    AuditEvent persisted = readAuditEvent(created.getIdElement().toUnqualifiedVersionless().getValue(), myAuditToken);
     assertEquals(created.getIdElement().toUnqualifiedVersionless().getValue(), persisted.getIdElement().toUnqualifiedVersionless().getValue());
   }
 
@@ -207,14 +210,14 @@ class OAuthMultitenantServerR4IT {
   }
 
   @Test
-  void auditEvent_putDenied_forAdminRole() {
+  void auditEvent_putDenied_forAuditRole() {
     ourTenantInterceptor.setTenantId(TENANT_A);
-    AuditEvent created = createAuditEvent(buildRosterLaunchAuditEvent(), myUserToken);
+    AuditEvent created = createAuditEvent(buildRosterLaunchAuditEvent(), myAuditToken);
     String auditEventId = created.getIdElement().toUnqualifiedVersionless().getValue();
     AuditEvent replacement = buildRosterLaunchAuditEvent();
     replacement.setId(auditEventId);
 
-    assertForbidden(() -> updateAuditEvent(auditEventId, replacement, myAdminToken));
+    assertForbidden(() -> updateAuditEvent(auditEventId, replacement, myAuditToken));
   }
 
   @Test
@@ -227,12 +230,12 @@ class OAuthMultitenantServerR4IT {
   }
 
   @Test
-  void auditEvent_deleteDenied_forAdminRole() {
+  void auditEvent_deleteDenied_forAuditRole() {
     ourTenantInterceptor.setTenantId(TENANT_A);
-    AuditEvent created = createAuditEvent(buildRosterLaunchAuditEvent(), myUserToken);
+    AuditEvent created = createAuditEvent(buildRosterLaunchAuditEvent(), myAuditToken);
     String auditEventId = created.getIdElement().toUnqualifiedVersionless().getValue();
 
-    assertForbidden(() -> deleteAuditEvent(auditEventId, myAdminToken));
+    assertForbidden(() -> deleteAuditEvent(auditEventId, myAuditToken));
   }
 
   @Test
@@ -409,19 +412,19 @@ class OAuthMultitenantServerR4IT {
   private AuditEvent createAndReadRosterEvent() {
     ourTenantInterceptor.setTenantId(TENANT_A);
     AuditEvent created = createAuditEvent(buildRosterLaunchAuditEvent(), myUserToken);
-    return readAuditEvent(created.getIdElement().toUnqualifiedVersionless().getValue(), myAdminToken);
+    return readAuditEvent(created.getIdElement().toUnqualifiedVersionless().getValue(), myAuditToken);
   }
 
   private AuditEvent createAndReadFacetEvent(String patientId) {
     ourTenantInterceptor.setTenantId(TENANT_A);
     AuditEvent created = createAuditEvent(buildFacetLaunchAuditEvent(patientId), myUserToken);
-    return readAuditEvent(created.getIdElement().toUnqualifiedVersionless().getValue(), myAdminToken);
+    return readAuditEvent(created.getIdElement().toUnqualifiedVersionless().getValue(), myAuditToken);
   }
 
   private AuditEvent createAndReadEngageEvent(String patientId) {
     ourTenantInterceptor.setTenantId(TENANT_A);
     AuditEvent created = createAuditEvent(buildEngagePatientLaunchAuditEvent(patientId), myUserToken);
-    return readAuditEvent(created.getIdElement().toUnqualifiedVersionless().getValue(), myAdminToken);
+    return readAuditEvent(created.getIdElement().toUnqualifiedVersionless().getValue(), myAuditToken);
   }
 
   private AuditEvent buildRosterLaunchAuditEvent() {

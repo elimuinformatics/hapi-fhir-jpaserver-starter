@@ -100,10 +100,11 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 				return unauthorizedRule();
 			}
 
-			if (clientRoles.contains(getOAuthAdminRole()) || clientRoles.contains(getOAuthUserRole())) {
 				if (isAuditEventRequest(theRequest)) {
 					return authorizeAuditEventRequest(theRequest, clientRoles);
 				}
+
+			if (clientRoles.contains(getOAuthAdminRole()) || clientRoles.contains(getOAuthUserRole())) {
 
 				String patientId = OAuth2Helper.getClaimAsString(jwt, "patient");
 				if (Strings.isNullOrEmpty(patientId)) {
@@ -120,6 +121,8 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 		} catch (GeneralSecurityException e) {
 			logger.warn("Authentication failure - unable to verify token signature", e);
 			throw new AuthenticationException("Invalid authorization header: token verification failed - " + e.getMessage(), e);
+		} catch (AuthenticationException e) {
+			throw e;
 		} catch (RuntimeException e) {
 			logger.warn("Authentication failure - unable to decode token", e);
 			throw new AuthenticationException("Invalid authorization header: token parsing failed - " + e.getMessage(), e);
@@ -129,12 +132,33 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 	private List<IAuthRule> authorizeAuditEventRequest(RequestDetails theRequest, List<String> clientRoles) {
 		RequestTypeEnum requestType = theRequest.getRequestType();
 		boolean isPostSearch = isAuditEventPostSearchRequest(theRequest);
+		boolean hasAdminRole = clientRoles.contains(getOAuthAdminRole());
+		boolean hasAuditRole = clientRoles.contains(getOAuthAuditRole());
 		if (requestType == RequestTypeEnum.POST && !isPostSearch) {
-			return authorizedRule();
+			if (clientRoles.contains(getOAuthUserRole()) || hasAdminRole || hasAuditRole) {
+				return authorizedRule();
+			}
+			logger.warn("Authorization failure - token doesn't have a permitted role for AuditEvent create");
+			return unauthorizedRule();
 		}
-		if ((requestType == RequestTypeEnum.GET || isPostSearch) && clientRoles.contains(getOAuthAdminRole())) {
-			return authorizedRule();
-		}
+
+		if (requestType == RequestTypeEnum.GET || isPostSearch) {
+  			if (hasAdminRole) {
+       			return authorizedRule();
+   			}
+
+    		if (Strings.isNullOrEmpty(getOAuthAuditRole())) {
+        		throw new AuthenticationException("OAuth audit role is not configured");
+    		}
+
+    		if (hasAuditRole) {
+        		return authorizedRule();
+   	 		}
+
+    		logger.warn("Authorization failure - token doesn't have a role required for AuditEvent read/search");
+    		return unauthorizedRule();
+		}	
+			
 		logger.warn("Authorization failure - disallowed AuditEvent request type: {}", requestType);
 		return unauthorizedRule();
 	}
@@ -179,5 +203,9 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 
 	private String getOAuthAdminRole() {
 		return config.getOauth().getAdmin_role();
+	}
+
+	private String getOAuthAuditRole() {
+		return config.getOauth().getAudit_role();
 	}
 }

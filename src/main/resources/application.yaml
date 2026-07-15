@@ -286,6 +286,7 @@ hapi:
       client_id: ${OAUTH_CLIENT_ID}
       user_role: ${OAUTH_USER_ROLE}
       admin_role: ${OAUTH_ADMIN_ROLE}
+      audit_role: ${OAUTH_AUDIT_ROLE}
       jwks_url: ${OAUTH_JWKS_URL}
       authorize_url: ${OAUTH_AUTHORIZE_URL}
       token_url: ${OAUTH_TOKEN_URL}
