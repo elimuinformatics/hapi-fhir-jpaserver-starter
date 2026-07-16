@@ -782,7 +782,7 @@ public class AppProperties {
     private String client_id;
     private String user_role;
     private String admin_role;
-	private String audit_role;
+    private String audit_role;
 
     public Boolean getEnabled() {
       return enabled;
@@ -848,12 +848,12 @@ public class AppProperties {
       this.admin_role = admin_role;
     }
 
-	public String getAudit_role() {
-	  return audit_role;
+    public String getAudit_role() {
+      return audit_role;
     }
 
-	public void setAudit_role(String audit_role) {
-	  this.audit_role = audit_role;
+    public void setAudit_role(String audit_role) {
+      this.audit_role = audit_role;
     }
   }
 
