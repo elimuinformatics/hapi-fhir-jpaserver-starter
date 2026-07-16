@@ -143,20 +143,20 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 		}
 
 		if (requestType == RequestTypeEnum.GET || isPostSearch) {
-  			if (hasAdminRole) {
-       			return authorizedRule();
-   			}
+			if (hasAdminRole) {
+				return authorizedRule();
+			}
 
-    		if (Strings.isNullOrEmpty(getOAuthAuditRole())) {
-        		throw new AuthenticationException("OAuth audit role is not configured");
-    		}
+			if (Strings.isNullOrEmpty(getOAuthAuditRole())) {
+				throw new AuthenticationException("OAuth audit role is not configured");
+			}
 
-    		if (hasAuditRole) {
-        		return authorizedRule();
-   	 		}
+			if (hasAuditRole) {
+				return authorizedRule();
+			}
 
-    		logger.warn("Authorization failure - token doesn't have a role required for AuditEvent read/search");
-    		return unauthorizedRule();
+			logger.warn("Authorization failure - token doesn't have a role required for AuditEvent read/search");
+			return unauthorizedRule();
 		}	
 			
 		logger.warn("Authorization failure - disallowed AuditEvent request type: {}", requestType);
