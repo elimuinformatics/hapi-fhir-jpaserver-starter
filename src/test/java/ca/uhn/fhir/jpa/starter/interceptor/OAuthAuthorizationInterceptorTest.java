@@ -328,7 +328,7 @@ class OAuthAuthorizationInterceptorTest {
 	}
 
 	@Test
-	void buildRuleList_auditEventGet_auditRoleWithoutConfiguredAuditRole_throwsAuthenticationException() {
+	void buildRuleList_auditEventGet_auditRoleWithoutConfiguredAuditRole_isUnauthorized() {
 		myAppProperties.getOauth().setAudit_role(null);
 		when(myRequestDetails.getResourceName()).thenReturn("AuditEvent");
 		when(myRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.GET);
@@ -341,7 +341,8 @@ class OAuthAuthorizationInterceptorTest {
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("audit-api-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
-			assertThrows(AuthenticationException.class, () -> myInterceptor.buildRuleList(myRequestDetails));
+			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
+			assertRuleListMatches(rules, unauthorizedRules());
 		}
 	}
 

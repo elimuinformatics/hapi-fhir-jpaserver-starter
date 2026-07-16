@@ -92,17 +92,17 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 				return unauthorizedRule();
 			}
 
-			// The only difference between the admin role and the user role is that the admin role
-			// allows DELETE requests. It still needs to enforce a patient claim, if one exists.
+			// Admin and user roles can access non-AuditEvent resources, but only admin may DELETE.
+			// If a patient claim exists, both roles are still constrained to the patient compartment.
 			if (theRequest.getRequestType().equals(RequestTypeEnum.DELETE)
 					&& !clientRoles.contains(getOAuthAdminRole())) {
 				logger.warn("Authorization failure - token doesn't have the admin role required for delete");
 				return unauthorizedRule();
 			}
 
-				if (isAuditEventRequest(theRequest)) {
-					return authorizeAuditEventRequest(theRequest, clientRoles);
-				}
+			if (isAuditEventRequest(theRequest)) {
+				return authorizeAuditEventRequest(theRequest, clientRoles);
+			}
 
 			if (clientRoles.contains(getOAuthAdminRole()) || clientRoles.contains(getOAuthUserRole())) {
 
@@ -143,22 +143,14 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 		}
 
 		if (requestType == RequestTypeEnum.GET || isPostSearch) {
-			if (hasAdminRole) {
-				return authorizedRule();
-			}
-
-			if (Strings.isNullOrEmpty(getOAuthAuditRole())) {
-				throw new AuthenticationException("OAuth audit role is not configured");
-			}
-
-			if (hasAuditRole) {
+			if (hasAdminRole || hasAuditRole) {
 				return authorizedRule();
 			}
 
 			logger.warn("Authorization failure - token doesn't have a role required for AuditEvent read/search");
 			return unauthorizedRule();
-		}	
-			
+		}
+
 		logger.warn("Authorization failure - disallowed AuditEvent request type: {}", requestType);
 		return unauthorizedRule();
 	}
