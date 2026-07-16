@@ -133,7 +133,8 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 		RequestTypeEnum requestType = theRequest.getRequestType();
 		boolean isPostSearch = isAuditEventPostSearchRequest(theRequest);
 		boolean hasAdminRole = clientRoles.contains(getOAuthAdminRole());
-		boolean hasAuditRole = clientRoles.contains(getOAuthAuditRole());
+		String auditRole = getOAuthAuditRole();
+		boolean hasAuditRole = !Strings.isNullOrEmpty(auditRole) && clientRoles.contains(auditRole);
 		if (requestType == RequestTypeEnum.POST && !isPostSearch) {
 			if (clientRoles.contains(getOAuthUserRole()) || hasAdminRole || hasAuditRole) {
 				return authorizedRule();
