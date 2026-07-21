@@ -214,7 +214,6 @@ class OAuthAuthorizationInterceptorTest {
 		}
 	}
 
-
 	@Test
 	void buildRuleList_auditEventPostSearch_userRole_isUnauthorized() {
 		when(myRequestDetails.getResourceName()).thenReturn("AuditEvent");
@@ -272,7 +271,6 @@ class OAuthAuthorizationInterceptorTest {
 		}
 	}
 
-
 	@Test
 	void buildRuleList_auditEventGet_userRole_isUnauthorized() {
 		when(myRequestDetails.getResourceName()).thenReturn("AuditEvent");
@@ -288,6 +286,25 @@ class OAuthAuthorizationInterceptorTest {
 
 			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
 			assertRuleListMatches(rules, unauthorizedRules());
+		}
+	}
+
+	@Test
+	void buildRuleList_auditEventGet_adminRole_auditRoleUnconfigured_allowsAll() {
+		myAppProperties.getOauth().setAudit_role(null);
+		when(myRequestDetails.getResourceName()).thenReturn("AuditEvent");
+		when(myRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.GET);
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
+			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
+			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
+			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
+
+			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
+			assertRuleListMatches(rules, allowAllRules());
 		}
 	}
 
@@ -391,7 +408,7 @@ class OAuthAuthorizationInterceptorTest {
 		when(myRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.GET);
 
 		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
-				 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
 			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
@@ -410,7 +427,7 @@ class OAuthAuthorizationInterceptorTest {
 		when(myRequestDetails.getRequestPath()).thenReturn("Observation");
 
 		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
-				 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
 			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
@@ -421,7 +438,6 @@ class OAuthAuthorizationInterceptorTest {
 			assertRuleListMatches(rules, unauthorizedRules());
 		}
 	}
-
 
 	@Test
 	void buildRuleList_auditEventDelete_adminRole_isUnauthorized() {

@@ -121,8 +121,6 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 		} catch (GeneralSecurityException e) {
 			logger.warn("Authentication failure - unable to verify token signature", e);
 			throw new AuthenticationException("Invalid authorization header: token verification failed - " + e.getMessage(), e);
-		} catch (AuthenticationException e) {
-			throw e;
 		} catch (RuntimeException e) {
 			logger.warn("Authentication failure - unable to decode token", e);
 			throw new AuthenticationException("Invalid authorization header: token parsing failed - " + e.getMessage(), e);
