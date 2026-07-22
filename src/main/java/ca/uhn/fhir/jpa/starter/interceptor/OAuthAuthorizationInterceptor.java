@@ -92,18 +92,19 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 				return unauthorizedRule();
 			}
 
-			// The only difference between the admin role and the user role is that the admin role
-			// allows DELETE requests. It still needs to enforce a patient claim, if one exists.
+			// Admin and user roles can access non-AuditEvent resources, but only admin may DELETE.
+			// If a patient claim exists, both roles are still constrained to the patient compartment.
 			if (theRequest.getRequestType().equals(RequestTypeEnum.DELETE)
 					&& !clientRoles.contains(getOAuthAdminRole())) {
 				logger.warn("Authorization failure - token doesn't have the admin role required for delete");
 				return unauthorizedRule();
 			}
 
+			if (isAuditEventRequest(theRequest)) {
+				return authorizeAuditEventRequest(theRequest, clientRoles);
+			}
+
 			if (clientRoles.contains(getOAuthAdminRole()) || clientRoles.contains(getOAuthUserRole())) {
-				if (isAuditEventRequest(theRequest)) {
-					return authorizeAuditEventRequest(theRequest, clientRoles);
-				}
 
 				String patientId = OAuth2Helper.getClaimAsString(jwt, "patient");
 				if (Strings.isNullOrEmpty(patientId)) {
@@ -129,12 +130,26 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 	private List<IAuthRule> authorizeAuditEventRequest(RequestDetails theRequest, List<String> clientRoles) {
 		RequestTypeEnum requestType = theRequest.getRequestType();
 		boolean isPostSearch = isAuditEventPostSearchRequest(theRequest);
+		boolean hasAdminRole = clientRoles.contains(getOAuthAdminRole());
+		String auditRole = getOAuthAuditRole();
+		boolean hasAuditRole = !Strings.isNullOrEmpty(auditRole) && clientRoles.contains(auditRole);
 		if (requestType == RequestTypeEnum.POST && !isPostSearch) {
-			return authorizedRule();
+			if (clientRoles.contains(getOAuthUserRole()) || hasAdminRole || hasAuditRole) {
+				return authorizedRule();
+			}
+			logger.warn("Authorization failure - token doesn't have a permitted role for AuditEvent create");
+			return unauthorizedRule();
 		}
-		if ((requestType == RequestTypeEnum.GET || isPostSearch) && clientRoles.contains(getOAuthAdminRole())) {
-			return authorizedRule();
+
+		if (requestType == RequestTypeEnum.GET || isPostSearch) {
+			if (hasAdminRole || hasAuditRole) {
+				return authorizedRule();
+			}
+
+			logger.warn("Authorization failure - token doesn't have a role required for AuditEvent read/search");
+			return unauthorizedRule();
 		}
+
 		logger.warn("Authorization failure - disallowed AuditEvent request type: {}", requestType);
 		return unauthorizedRule();
 	}
@@ -179,5 +194,9 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 
 	private String getOAuthAdminRole() {
 		return config.getOauth().getAdmin_role();
+	}
+
+	private String getOAuthAuditRole() {
+		return config.getOauth().getAudit_role();
 	}
 }
