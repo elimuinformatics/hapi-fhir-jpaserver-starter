@@ -39,7 +39,7 @@ This guide defines how to add `AuditEvent` support in this fork of `hapi-fhir-jp
 - **Privacy/security constraints:**
   - Do not include PHI names or query strings in persisted audit records.
 - Use identifier-based references (`Reference.identifier`) for provider/patient context in Phase 1 launch events.
-  - `user_role`, `audit_role` and `admin_role` can read/search/history `AuditEvent`.
+  - `user_role`, `audit_role` and `admin_role` can create `AuditEvent`.
   - `admin_role` and `audit_role` can read/search/history `AuditEvent`.
   - Deny external `PUT/PATCH/DELETE` on `AuditEvent`.
 - **Stability constraints:**
