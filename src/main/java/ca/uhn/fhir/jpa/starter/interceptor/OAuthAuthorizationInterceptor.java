@@ -4,6 +4,7 @@ import java.security.GeneralSecurityException;
 import java.util.List;
 
 import org.hl7.fhir.r4.model.IdType;
+import org.hl7.fhir.r4.model.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +28,7 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 	private static final Logger logger = LoggerFactory.getLogger(OAuthAuthorizationInterceptor.class);
 	private static final String PATIENT_RESOURCE = "Patient";
 	private static final String AUDIT_EVENT_RESOURCE = "AuditEvent";
+	private static final String SUBSCRIPTION_RESOURCE = "Subscription";
 	private static final String SEARCH_PATH_SUFFIX = "/_search";
 
 	private final AppProperties config;
@@ -78,6 +80,18 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 			.build();
 	}
 
+	// What a non-admin token gets instead of allowAll. Subscription.channel.header carries a shared
+	// secret that the server echoes on read, and the check in authorizeOAuth only sees a request whose
+	// resource name is Subscription - a read inside a transaction Bundle is a POST at the server root,
+	// where getResourceName() is null. Denying the read as a rule instead lets HAPI enforce it wherever
+	// the resource is loaded, so the Bundle route is closed too.
+	private List<IAuthRule> subscriptionReadDeniedRule() {
+		return new RuleBuilder()
+			.deny().read().resourcesOfType(Subscription.class).withAnyId().andThen()
+			.allowAll()
+			.build();
+	}
+
 	private List<IAuthRule> authorizeOAuth(RequestDetails theRequest) throws AuthenticationException {
 		logger.info("Authorizing via OAuth2");
 		String token = OAuth2Helper.getToken(theRequest);
@@ -92,10 +106,12 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 				return unauthorizedRule();
 			}
 
-			// Admin and user roles can access non-AuditEvent resources, but only admin may DELETE.
-			// If a patient claim exists, both roles are still constrained to the patient compartment.
-			if (theRequest.getRequestType().equals(RequestTypeEnum.DELETE)
-					&& !clientRoles.contains(getOAuthAdminRole())) {
+			boolean hasAdminRole = clientRoles.contains(getOAuthAdminRole());
+
+			// Admin and user roles can access resources other than AuditEvent and Subscription, but only
+			// admin may DELETE. If a patient claim exists, both roles are still constrained to the patient
+			// compartment.
+			if (theRequest.getRequestType().equals(RequestTypeEnum.DELETE) && !hasAdminRole) {
 				logger.warn("Authorization failure - token doesn't have the admin role required for delete");
 				return unauthorizedRule();
 			}
@@ -104,12 +120,17 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 				return authorizeAuditEventRequest(theRequest, clientRoles);
 			}
 
-			if (clientRoles.contains(getOAuthAdminRole()) || clientRoles.contains(getOAuthUserRole())) {
+			if (isSubscriptionReadRequest(theRequest) && !hasAdminRole) {
+				logger.warn("Authorization failure - token doesn't have the admin role required for Subscription read/search");
+				return unauthorizedRule();
+			}
+
+			if (hasAdminRole || clientRoles.contains(getOAuthUserRole())) {
 
 				String patientId = OAuth2Helper.getClaimAsString(jwt, "patient");
 				if (Strings.isNullOrEmpty(patientId)) {
 					logger.debug("No patient claim specified in authorization token");
-					return authorizedRule();
+					return hasAdminRole ? authorizedRule() : subscriptionReadDeniedRule();
 				} else {
 					logger.debug("Patient claim specified in in authorization token; will use patient compartment rules");
 					return authorizedInPatientCompartmentRule(theRequest, patientId);
@@ -129,7 +150,7 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 
 	private List<IAuthRule> authorizeAuditEventRequest(RequestDetails theRequest, List<String> clientRoles) {
 		RequestTypeEnum requestType = theRequest.getRequestType();
-		boolean isPostSearch = isAuditEventPostSearchRequest(theRequest);
+		boolean isPostSearch = isPostSearchRequest(theRequest);
 		boolean hasAdminRole = clientRoles.contains(getOAuthAdminRole());
 		String auditRole = getOAuthAuditRole();
 		boolean hasAuditRole = !Strings.isNullOrEmpty(auditRole) && clientRoles.contains(auditRole);
@@ -158,7 +179,14 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 		return AUDIT_EVENT_RESOURCE.equalsIgnoreCase(theRequest.getResourceName());
 	}
 
-	private boolean isAuditEventPostSearchRequest(RequestDetails theRequest) {
+	// GET covers the instance read, the type search and both _history forms, which are the routes that
+	// serve channel.header back.
+	private boolean isSubscriptionReadRequest(RequestDetails theRequest) {
+		return SUBSCRIPTION_RESOURCE.equalsIgnoreCase(theRequest.getResourceName())
+			&& (theRequest.getRequestType() == RequestTypeEnum.GET || isPostSearchRequest(theRequest));
+	}
+
+	private boolean isPostSearchRequest(RequestDetails theRequest) {
 		String requestPath = theRequest.getRequestPath();
 		return theRequest.getRequestType() == RequestTypeEnum.POST
 			&& requestPath != null
