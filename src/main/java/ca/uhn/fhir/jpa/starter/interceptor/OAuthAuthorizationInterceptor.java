@@ -111,7 +111,7 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 			// Admin and user roles can access resources other than AuditEvent and Subscription, but only
 			// admin may DELETE. If a patient claim exists, both roles are still constrained to the patient
 			// compartment.
-			if (theRequest.getRequestType().equals(RequestTypeEnum.DELETE) && !hasAdminRole) {
+			if (theRequest.getRequestType() == RequestTypeEnum.DELETE && !hasAdminRole) {
 				logger.warn("Authorization failure - token doesn't have the admin role required for delete");
 				return unauthorizedRule();
 			}
