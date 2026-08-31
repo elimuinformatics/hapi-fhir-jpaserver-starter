@@ -80,14 +80,16 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 			.build();
 	}
 
-	// What a non-admin token gets instead of allowAll. Subscription.channel.header carries a shared
-	// secret that the server echoes on read, and the check in authorizeOAuth only sees a request whose
-	// resource name is Subscription - a read inside a transaction Bundle is a POST at the server root,
-	// where getResourceName() is null. Denying the read as a rule instead lets HAPI enforce it wherever
-	// the resource is loaded, so the Bundle route is closed too.
-	private List<IAuthRule> subscriptionReadDeniedRule() {
+	// What a non-admin token gets instead of allowAll. The check in authorizeOAuth only sees a request
+	// whose resource name is Subscription - inside a transaction Bundle that is a POST at the server
+	// root, where getResourceName() is null. Denying as rules instead lets HAPI enforce them wherever
+	// the resource is loaded, so the Bundle route is closed too. A PATCH entry inside a Bundle stays
+	// uncovered, because HAPI's patch rules cannot be narrowed to a resource type.
+	private List<IAuthRule> subscriptionDeniedRule() {
 		return new RuleBuilder()
 			.deny().read().resourcesOfType(Subscription.class).withAnyId().andThen()
+			.deny().write().resourcesOfType(Subscription.class).withAnyId().andThen()
+			.deny().delete().resourcesOfType(Subscription.class).withAnyId().andThen()
 			.allowAll()
 			.build();
 	}
@@ -120,8 +122,8 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 				return authorizeAuditEventRequest(theRequest, clientRoles);
 			}
 
-			if (isSubscriptionReadRequest(theRequest) && !hasAdminRole) {
-				logger.warn("Authorization failure - token doesn't have the admin role required for Subscription read/search");
+			if (isSubscriptionRequest(theRequest) && !hasAdminRole) {
+				logger.warn("Authorization failure - token doesn't have the admin role required for Subscription");
 				return unauthorizedRule();
 			}
 
@@ -130,7 +132,7 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 				String patientId = OAuth2Helper.getClaimAsString(jwt, "patient");
 				if (Strings.isNullOrEmpty(patientId)) {
 					logger.debug("No patient claim specified in authorization token");
-					return hasAdminRole ? authorizedRule() : subscriptionReadDeniedRule();
+					return hasAdminRole ? authorizedRule() : subscriptionDeniedRule();
 				} else {
 					logger.debug("Patient claim specified in in authorization token; will use patient compartment rules");
 					return authorizedInPatientCompartmentRule(theRequest, patientId);
@@ -179,11 +181,10 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 		return AUDIT_EVENT_RESOURCE.equalsIgnoreCase(theRequest.getResourceName());
 	}
 
-	// GET covers the instance read, the type search and both _history forms, which are the routes that
-	// serve channel.header back.
-	private boolean isSubscriptionReadRequest(RequestDetails theRequest) {
-		return SUBSCRIPTION_RESOURCE.equalsIgnoreCase(theRequest.getResourceName())
-			&& (theRequest.getRequestType() == RequestTypeEnum.GET || isPostSearchRequest(theRequest));
+	// Every request type, not just the reads: channel.header carries a shared secret the server echoes
+	// back, and channel.endpoint decides where HAPI relays the matching resources.
+	private boolean isSubscriptionRequest(RequestDetails theRequest) {
+		return SUBSCRIPTION_RESOURCE.equalsIgnoreCase(theRequest.getResourceName());
 	}
 
 	private boolean isPostSearchRequest(RequestDetails theRequest) {
