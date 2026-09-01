@@ -551,6 +551,7 @@ class OAuthAuthorizationInterceptorTest {
 	@Test
 	void buildRuleList_subscriptionGet_userRole_isUnauthorized() {
 		when(myRequestDetails.getResourceName()).thenReturn("Subscription");
+		when(myRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.GET);
 		when(myRequestDetails.getRequestPath()).thenReturn("Subscription/123");
 
 		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
@@ -569,6 +570,7 @@ class OAuthAuthorizationInterceptorTest {
 	@Test
 	void buildRuleList_subscriptionHistoryGet_userRole_isUnauthorized() {
 		when(myRequestDetails.getResourceName()).thenReturn("Subscription");
+		when(myRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.GET);
 		when(myRequestDetails.getRequestPath()).thenReturn("Subscription/123/_history");
 
 		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
@@ -609,6 +611,7 @@ class OAuthAuthorizationInterceptorTest {
 	@Test
 	void buildRuleList_subscriptionGet_userRoleWithPatientClaim_isUnauthorized() {
 		when(myRequestDetails.getResourceName()).thenReturn("Subscription");
+		when(myRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.GET);
 		when(myRequestDetails.getRequestPath()).thenReturn("Subscription/123");
 
 		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
@@ -629,6 +632,7 @@ class OAuthAuthorizationInterceptorTest {
 	@Test
 	void buildRuleList_subscriptionGet_adminRole_allowsAll() {
 		when(myRequestDetails.getResourceName()).thenReturn("Subscription");
+		when(myRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.GET);
 		when(myRequestDetails.getRequestPath()).thenReturn("Subscription/123");
 
 		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
@@ -704,6 +708,28 @@ class OAuthAuthorizationInterceptorTest {
 		}
 	}
 
+	// authorizeSubscriptionRequest has no disallowed-request-type fallback, unlike its AuditEvent
+	// counterpart, so retiring a Subscription as an admin still goes through.
+	@Test
+	void buildRuleList_subscriptionDelete_adminRole_allowsAll() {
+		when(myRequestDetails.getResourceName()).thenReturn("Subscription");
+		when(myRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.DELETE);
+		when(myRequestDetails.getRequestPath()).thenReturn("Subscription/123");
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
+			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
+			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
+			helperMock.when(() -> OAuth2Helper.getClaimAsString(myDecodedJwt, "patient")).thenReturn(null);
+			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
+
+			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
+			assertRuleListMatches(rules, allowAllRules());
+		}
+	}
+
 	// The rules, not the resource-name check, are what close the transaction-Bundle route: a Bundle POST
 	// at the server root has no resource name, so it reaches this list and the denies still apply.
 	@Test
@@ -722,13 +748,14 @@ class OAuthAuthorizationInterceptorTest {
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
 			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
-			assertRuleListMatches(rules, subscriptionDeniedRules());
+			assertRuleListMatches(rules, allowAllExceptSubscriptionRules());
 		}
 	}
 
 	@Test
 	void buildRuleList_observationGet_userRoleWithoutPatientClaim_deniesSubscription() {
 		when(myRequestDetails.getResourceName()).thenReturn("Observation");
+		when(myRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.GET);
 		when(myRequestDetails.getRequestPath()).thenReturn("Observation/123");
 
 		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
@@ -741,7 +768,7 @@ class OAuthAuthorizationInterceptorTest {
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
 			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
-			assertRuleListMatches(rules, subscriptionDeniedRules());
+			assertRuleListMatches(rules, allowAllExceptSubscriptionRules());
 		}
 	}
 
@@ -833,7 +860,7 @@ class OAuthAuthorizationInterceptorTest {
 			.build();
 	}
 
-	private List<IAuthRule> subscriptionDeniedRules() {
+	private List<IAuthRule> allowAllExceptSubscriptionRules() {
 		return new RuleBuilder()
 			.deny().read().resourcesOfType(Subscription.class).withAnyId().andThen()
 			.deny().write().resourcesOfType(Subscription.class).withAnyId().andThen()
