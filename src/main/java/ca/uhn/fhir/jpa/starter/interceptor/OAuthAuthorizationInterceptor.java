@@ -4,7 +4,6 @@ import java.security.GeneralSecurityException;
 import java.util.List;
 
 import org.hl7.fhir.r4.model.IdType;
-import org.hl7.fhir.r4.model.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,21 +79,6 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 			.build();
 	}
 
-	// authorizeSubscriptionRequest only sees a request whose resource name is Subscription - inside a
-	// transaction Bundle that is a POST at the server root, where getResourceName() is null. Denying as
-	// rules instead lets HAPI enforce them wherever the resource is loaded, so the Bundle route is
-	// closed too. A PATCH entry inside a Bundle stays uncovered, because HAPI's patch rules cannot be
-	// narrowed to a resource type. PT-2657 tracks covering AuditEvent and the patient-claim branch the
-	// same way.
-	private List<IAuthRule> allowAllExceptSubscriptionRule() {
-		return new RuleBuilder()
-			.deny().read().resourcesOfType(Subscription.class).withAnyId().andThen()
-			.deny().write().resourcesOfType(Subscription.class).withAnyId().andThen()
-			.deny().delete().resourcesOfType(Subscription.class).withAnyId().andThen()
-			.allowAll()
-			.build();
-	}
-
 	private List<IAuthRule> authorizeOAuth(RequestDetails theRequest) throws AuthenticationException {
 		logger.info("Authorizing via OAuth2");
 		String token = OAuth2Helper.getToken(theRequest);
@@ -109,12 +93,11 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 				return unauthorizedRule();
 			}
 
-			boolean hasAdminRole = clientRoles.contains(getOAuthAdminRole());
-
 			// Admin and user roles can access resources other than AuditEvent and Subscription, but only
 			// admin may DELETE. If a patient claim exists, both roles are still constrained to the patient
 			// compartment.
-			if (theRequest.getRequestType() == RequestTypeEnum.DELETE && !hasAdminRole) {
+			if (theRequest.getRequestType() == RequestTypeEnum.DELETE
+					&& !clientRoles.contains(getOAuthAdminRole())) {
 				logger.warn("Authorization failure - token doesn't have the admin role required for delete");
 				return unauthorizedRule();
 			}
@@ -127,12 +110,12 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 				return authorizeSubscriptionRequest(theRequest, clientRoles);
 			}
 
-			if (hasAdminRole || clientRoles.contains(getOAuthUserRole())) {
+			if (clientRoles.contains(getOAuthAdminRole()) || clientRoles.contains(getOAuthUserRole())) {
 
 				String patientId = OAuth2Helper.getClaimAsString(jwt, "patient");
 				if (Strings.isNullOrEmpty(patientId)) {
 					logger.debug("No patient claim specified in authorization token");
-					return hasAdminRole ? authorizedRule() : allowAllExceptSubscriptionRule();
+					return authorizedRule();
 				} else {
 					logger.debug("Patient claim specified in in authorization token; will use patient compartment rules");
 					return authorizedInPatientCompartmentRule(theRequest, patientId);

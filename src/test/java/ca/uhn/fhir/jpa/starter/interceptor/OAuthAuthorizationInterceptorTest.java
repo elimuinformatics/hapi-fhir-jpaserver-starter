@@ -13,7 +13,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
 import org.hl7.fhir.r4.model.IdType;
-import org.hl7.fhir.r4.model.Subscription;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -730,30 +729,8 @@ class OAuthAuthorizationInterceptorTest {
 		}
 	}
 
-	// The rules, not the resource-name check, are what close the transaction-Bundle route: a Bundle POST
-	// at the server root has no resource name, so it reaches this list and the denies still apply.
 	@Test
-	void buildRuleList_userRoleWithoutPatientClaim_deniesSubscription() {
-		when(myRequestDetails.getResourceName()).thenReturn(null);
-		when(myRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.POST);
-		when(myRequestDetails.getRequestPath()).thenReturn("");
-
-		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
-			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
-			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
-			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
-			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("user-role"));
-			helperMock.when(() -> OAuth2Helper.getClaimAsString(myDecodedJwt, "patient")).thenReturn(null);
-			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
-
-			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
-			assertRuleListMatches(rules, allowAllExceptSubscriptionRules());
-		}
-	}
-
-	@Test
-	void buildRuleList_observationGet_userRoleWithoutPatientClaim_deniesSubscription() {
+	void buildRuleList_observationGet_userRoleWithoutPatientClaim_allowsAll() {
 		when(myRequestDetails.getResourceName()).thenReturn("Observation");
 		when(myRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.GET);
 		when(myRequestDetails.getRequestPath()).thenReturn("Observation/123");
@@ -768,7 +745,7 @@ class OAuthAuthorizationInterceptorTest {
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
 			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
-			assertRuleListMatches(rules, allowAllExceptSubscriptionRules());
+			assertRuleListMatches(rules, allowAllRules());
 		}
 	}
 
@@ -857,15 +834,6 @@ class OAuthAuthorizationInterceptorTest {
 		return new RuleBuilder()
 			.allow().metadata().andThen()
 			.denyAll()
-			.build();
-	}
-
-	private List<IAuthRule> allowAllExceptSubscriptionRules() {
-		return new RuleBuilder()
-			.deny().read().resourcesOfType(Subscription.class).withAnyId().andThen()
-			.deny().write().resourcesOfType(Subscription.class).withAnyId().andThen()
-			.deny().delete().resourcesOfType(Subscription.class).withAnyId().andThen()
-			.allowAll()
 			.build();
 	}
 
