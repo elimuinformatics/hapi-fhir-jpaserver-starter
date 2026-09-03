@@ -107,7 +107,7 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 			}
 
 			if (isSubscriptionRequest(theRequest)) {
-				return authorizeSubscriptionRequest(theRequest, clientRoles);
+				return authorizeSubscriptionRequest(clientRoles);
 			}
 
 			if (clientRoles.contains(getOAuthAdminRole()) || clientRoles.contains(getOAuthUserRole())) {
@@ -166,16 +166,12 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 	// them to a server of their own choosing, without ever reading that secret. The cost is that
 	// analytics-services' register-subscription.sh needs an admin token to register, not only to
 	// read back.
-	private List<IAuthRule> authorizeSubscriptionRequest(RequestDetails theRequest, List<String> clientRoles) {
+	private List<IAuthRule> authorizeSubscriptionRequest(List<String> clientRoles) {
 		if (clientRoles.contains(getOAuthAdminRole())) {
 			return authorizedRule();
 		}
 
-		String requestKind = isPostSearchRequest(theRequest)
-			? "search"
-			: String.valueOf(theRequest.getRequestType());
-		logger.warn("Authorization failure - token doesn't have the admin role required for Subscription {}",
-			requestKind);
+		logger.warn("Authorization failure - token doesn't have the admin role required for Subscription");
 		return unauthorizedRule();
 	}
 
