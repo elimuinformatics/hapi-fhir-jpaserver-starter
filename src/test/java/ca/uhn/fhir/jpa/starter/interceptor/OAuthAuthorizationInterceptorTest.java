@@ -707,8 +707,7 @@ class OAuthAuthorizationInterceptorTest {
 		}
 	}
 
-	// authorizeSubscriptionRequest has no disallowed-request-type fallback, unlike its AuditEvent
-	// counterpart, so retiring a Subscription as an admin still goes through.
+	// An admin DELETE is how a registered Subscription is retired, so it has to stay allowed.
 	@Test
 	void buildRuleList_subscriptionDelete_adminRole_allowsAll() {
 		when(myRequestDetails.getResourceName()).thenReturn("Subscription");

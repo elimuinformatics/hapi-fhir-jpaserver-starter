@@ -166,10 +166,6 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 	// them to a server of their own choosing, without ever reading that secret. The cost is that
 	// analytics-services' register-subscription.sh needs an admin token to register, not only to
 	// read back.
-	//
-	// Unlike authorizeAuditEventRequest there is no trailing disallowed-request-type branch: that one
-	// refuses PUT and DELETE for every role, and Subscription must not, since an admin PUT is how
-	// register-subscription.sh registers one and an admin DELETE is how it is retired.
 	private List<IAuthRule> authorizeSubscriptionRequest(RequestDetails theRequest, List<String> clientRoles) {
 		if (clientRoles.contains(getOAuthAdminRole())) {
 			return authorizedRule();
