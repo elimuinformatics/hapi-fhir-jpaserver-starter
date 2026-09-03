@@ -162,9 +162,10 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 
 	// Admin on every request type, not just the reads. channel.header carries the shared secret that
 	// authenticates HAPI's rest-hook callback and the server echoes it back on read; channel.endpoint
-	// decides where HAPI relays the matching resources, so a non-admin registration could point the
-	// relay off-box without ever reading that secret. The cost is that analytics-services'
-	// register-subscription.sh needs an admin token to register, not only to read back.
+	// decides where HAPI sends the matching resources, so a non-admin could register one that sends
+	// them to a server of their own choosing, without ever reading that secret. The cost is that
+	// analytics-services' register-subscription.sh needs an admin token to register, not only to
+	// read back.
 	//
 	// Unlike authorizeAuditEventRequest there is no trailing disallowed-request-type branch: that one
 	// refuses PUT and DELETE for every role, and Subscription must not, since an admin PUT is how
