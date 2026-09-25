@@ -45,10 +45,11 @@ public class OAuthConsentService implements IConsentService {
 
   /*
    * Returning true here is not free: it makes ConsentInterceptor load every resource of every
-   * search page, and marks the search non-reusable so its results are never cached. It also fails
-   * the request outright when a resource is deleted between the id query and the load, since the
-   * pre-access details report the id count while the loader drops rows with no live version, so
-   * the index walk throws IndexOutOfBoundsException and HAPI answers 500.
+   * search page, and marks the search non-reusable so its results are never cached. It can also
+   * fail the request outright, because the pre-access details report the id count while the loader
+   * can return fewer resources than that, and the index walk then throws IndexOutOfBoundsException
+   * and HAPI answers 500. What makes the loader come up short is not established; see
+   * hapifhir/hapi-fhir#8071, whose fix PR #8072 was closed unmerged, so no released HAPI guards it.
    */
   @Override
   public boolean shouldProcessCanSeeResource(RequestDetails theRequestDetails,
