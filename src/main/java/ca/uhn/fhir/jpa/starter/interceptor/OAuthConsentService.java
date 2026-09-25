@@ -44,16 +44,20 @@ public class OAuthConsentService implements IConsentService {
   }
 
   /*
-   * Left at the interface default of true, ConsentInterceptor loads every resource of every search
-   * page before canSeeResource can decline it. That is wasted work on every non-Task search, and it
-   * fails the request outright when a resource is deleted between the id query and the load: the
-   * pre-access details report the id count while the loader drops rows with no live version, so the
-   * index walk throws IndexOutOfBoundsException and HAPI answers 500.
+   * Must stay in step with the early exits in canSeeResource: whatever that method would let
+   * through untouched, this one has to decline, because returning true is not free. It makes
+   * ConsentInterceptor load every resource of every search page, and mark the search as
+   * non-reusable so its results are never cached. It also fails the request outright when a
+   * resource is deleted between the id query and the load, since the pre-access details report the
+   * id count while the loader drops rows with no live version, so the index walk throws
+   * IndexOutOfBoundsException and HAPI answers 500.
    */
   @Override
   public boolean shouldProcessCanSeeResource(RequestDetails theRequestDetails,
       IConsentContextServices theContextServices) {
-    return isUsingOAuth(theRequestDetails) && isTaskRequest(theRequestDetails);
+    return isUsingOAuth(theRequestDetails)
+        && isTaskRequest(theRequestDetails)
+        && !Strings.isNullOrEmpty(getPatientClaim(theRequestDetails));
   }
 
   @Override

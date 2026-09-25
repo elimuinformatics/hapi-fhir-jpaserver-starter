@@ -98,10 +98,22 @@ class OAuthConsentServiceTest {
 	}
 
 	@Test
-	void shouldProcessCanSeeResource_oauthTaskRequest_isTrue() {
+	void shouldProcessCanSeeResource_taskRequestWithoutPatientClaim_isFalse() {
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class)) {
+			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
+			helperMock.when(() -> OAuth2Helper.getClaimAsString(myRequestDetails, "patient")).thenReturn(null);
+
+			assertFalse(myConsentService.shouldProcessCanSeeResource(
+				myRequestDetails, myConsentContextServices));
+		}
+	}
+
+	@Test
+	void shouldProcessCanSeeResource_oauthTaskRequestWithPatientClaim_isTrue() {
 		// The Task filtering this class exists for still has to run.
 		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
+			helperMock.when(() -> OAuth2Helper.getClaimAsString(myRequestDetails, "patient")).thenReturn("123");
 
 			assertTrue(myConsentService.shouldProcessCanSeeResource(
 				myRequestDetails, myConsentContextServices));
