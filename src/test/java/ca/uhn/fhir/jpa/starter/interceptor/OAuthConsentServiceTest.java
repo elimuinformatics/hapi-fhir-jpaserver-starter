@@ -1,6 +1,8 @@
 package ca.uhn.fhir.jpa.starter.interceptor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -47,6 +49,63 @@ class OAuthConsentServiceTest {
 		when(myRequestDetails.getResourceName()).thenReturn("Task");
 		when(myRequestDetails.getId()).thenReturn(new IdType("Task/1"));
 		when(myDaoRegistry.getResourceDao("Task")).thenReturn(myResourceDao);
+	}
+
+	@Test
+	void shouldProcessCanSeeResource_nonTaskRequest_isFalse() {
+		when(myRequestDetails.getResourceName()).thenReturn("Patient");
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class)) {
+			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
+
+			assertFalse(myConsentService.shouldProcessCanSeeResource(
+				myRequestDetails, myConsentContextServices));
+		}
+	}
+
+	@Test
+	void shouldProcessCanSeeResource_bundleRequestWithNoResourceName_isFalse() {
+		when(myRequestDetails.getResourceName()).thenReturn(null);
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class)) {
+			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
+
+			assertFalse(myConsentService.shouldProcessCanSeeResource(
+				myRequestDetails, myConsentContextServices));
+		}
+	}
+
+	@Test
+	void shouldProcessCanSeeResource_taskRequestWithoutToken_isFalse() {
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class)) {
+			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(false);
+
+			assertFalse(myConsentService.shouldProcessCanSeeResource(
+				myRequestDetails, myConsentContextServices));
+		}
+	}
+
+	@Test
+	void shouldProcessCanSeeResource_oauthDisabled_isFalse() {
+		myAppProperties.getOauth().setEnabled(false);
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class)) {
+			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
+
+			assertFalse(myConsentService.shouldProcessCanSeeResource(
+				myRequestDetails, myConsentContextServices));
+		}
+	}
+
+	@Test
+	void shouldProcessCanSeeResource_oauthTaskRequest_isTrue() {
+		// The Task filtering this class exists for still has to run.
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class)) {
+			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
+
+			assertTrue(myConsentService.shouldProcessCanSeeResource(
+				myRequestDetails, myConsentContextServices));
+		}
 	}
 
 	@Test
