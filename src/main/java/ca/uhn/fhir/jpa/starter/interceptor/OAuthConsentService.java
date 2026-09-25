@@ -44,34 +44,26 @@ public class OAuthConsentService implements IConsentService {
   }
 
   /*
-   * Must stay in step with the early exits in canSeeResource: whatever that method would let
-   * through untouched, this one has to decline, because returning true is not free. It makes
-   * ConsentInterceptor load every resource of every search page, and mark the search as
-   * non-reusable so its results are never cached. It also fails the request outright when a
-   * resource is deleted between the id query and the load, since the pre-access details report the
-   * id count while the loader drops rows with no live version, so the index walk throws
-   * IndexOutOfBoundsException and HAPI answers 500.
+   * Returning true here is not free: it makes ConsentInterceptor load every resource of every
+   * search page, and marks the search non-reusable so its results are never cached. It also fails
+   * the request outright when a resource is deleted between the id query and the load, since the
+   * pre-access details report the id count while the loader drops rows with no live version, so
+   * the index walk throws IndexOutOfBoundsException and HAPI answers 500.
    */
   @Override
   public boolean shouldProcessCanSeeResource(RequestDetails theRequestDetails,
       IConsentContextServices theContextServices) {
-    return isUsingOAuth(theRequestDetails)
-        && isTaskRequest(theRequestDetails)
-        && !Strings.isNullOrEmpty(getPatientClaim(theRequestDetails));
+    return appliesTo(theRequestDetails);
   }
 
   @Override
   public ConsentOutcome canSeeResource(RequestDetails theRequestDetails, IBaseResource theResource,
       IConsentContextServices theContextServices) {
 
-    if (!isUsingOAuth(theRequestDetails)
-        || !isTaskRequest(theRequestDetails)) {
+    if (!appliesTo(theRequestDetails)) {
       return ConsentOutcome.PROCEED;
     }
     String patientId = getPatientClaim(theRequestDetails);
-    if (Strings.isNullOrEmpty(patientId)) {
-      return ConsentOutcome.PROCEED;
-    }
 
     boolean proceed = isResourceForPatient(theResource, patientId);
     if (logger.isDebugEnabled()) {
@@ -85,14 +77,10 @@ public class OAuthConsentService implements IConsentService {
   public ConsentOutcome startOperation(RequestDetails theRequestDetails,
       IConsentContextServices theContextServices) {
 
-    if (!isUsingOAuth(theRequestDetails)
-        || !isTaskRequest(theRequestDetails)) {
+    if (!appliesTo(theRequestDetails)) {
       return ConsentOutcome.PROCEED;
     }
     String patientId = getPatientClaim(theRequestDetails);
-    if (Strings.isNullOrEmpty(patientId)) {
-      return ConsentOutcome.PROCEED;
-    }
 
     try {
       switch (theRequestDetails.getRequestType()) {
@@ -114,6 +102,13 @@ public class OAuthConsentService implements IConsentService {
       }
       throw e;
     }
+  }
+
+  /* The single definition of "this service has something to say about this request". */
+  private boolean appliesTo(RequestDetails theRequest) {
+    return isUsingOAuth(theRequest)
+        && isTaskRequest(theRequest)
+        && !Strings.isNullOrEmpty(getPatientClaim(theRequest));
   }
 
   private boolean isUsingOAuth(RequestDetails theRequest) {
