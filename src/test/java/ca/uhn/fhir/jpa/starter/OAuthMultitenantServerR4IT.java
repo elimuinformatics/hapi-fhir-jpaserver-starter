@@ -62,7 +62,7 @@ import ca.uhn.fhir.rest.server.provider.ProviderConstants;
   "hapi.fhir.partitioning.partitioning_include_in_search_hashes=false",
   "hapi.fhir.partitioning.request_tenant_partitioning_mode=true",
   "hapi.fhir.oauth.enabled=true",
-  "hapi.fhir.oauth.issuer=https://auth.example.com/auth/realms/product",
+  "hapi.fhir.oauth.issuer=http://test-issuer",
   "hapi.fhir.oauth.client_id=client-a",
   "hapi.fhir.oauth.user_role=user-role",
   "hapi.fhir.oauth.admin_role=admin-role",
