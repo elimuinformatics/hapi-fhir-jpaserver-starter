@@ -1,31 +1,30 @@
 package ca.uhn.fhir.jpa.starter.util;
 
-import java.math.BigInteger;
-import java.security.KeyFactory;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.RSAPublicKeySpec;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.Validate;
-import org.json.JSONArray;
-import org.json.JSONObject;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
 
+import com.auth0.jwk.Jwk;
+import com.auth0.jwk.JwkException;
+import com.auth0.jwk.JwkProvider;
+import com.auth0.jwk.JwkProviderBuilder;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTVerificationException;
-import com.auth0.jwt.exceptions.TokenExpiredException;
 import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 
@@ -36,7 +35,7 @@ import ca.uhn.fhir.rest.api.server.RequestDetails;
 
 public class OAuth2Helper {
 	private static final String BEARER_PREFIX = "BEARER ";
-	private static RSAPublicKey publicKey = null;
+	private static final Map<String, JwkProvider> JWK_PROVIDERS = new ConcurrentHashMap<>();
 
 	private OAuth2Helper() {}
 
@@ -46,45 +45,43 @@ public class OAuth2Helper {
 		return auth.substring(BEARER_PREFIX.length());
 	}
 
-	public static void verify(DecodedJWT jwt, String jwksUrl) throws IllegalArgumentException,
-			NoSuchAlgorithmException, InvalidKeySpecException, TokenExpiredException, JWTVerificationException {
-		Validate.notNull(jwt, "jwt must not be null");
+	public static void verify(DecodedJWT jwt, String jwksUrl, String issuer)
+			throws GeneralSecurityException, JWTVerificationException {
 		Validate.notBlank(jwksUrl, "jwksUrl must not be blank");
-		// TODO: storage of cached public keys need to be a map by kid. there may be more than 1.
-		// TODO: Add an expiration for the caching of the key
-		// 	// TODO: JwkProvider??
-		// 	// https://github.com/auth0/java-jwt/blob/master/EXAMPLES.md
-		if (publicKey == null) {
-			publicKey = getKey(jwt.getKeyId(), jwksUrl);
+		verify(jwt, JWK_PROVIDERS.computeIfAbsent(jwksUrl, OAuth2Helper::buildJwkProvider), issuer);
+	}
+
+	static void verify(DecodedJWT jwt, JwkProvider jwkProvider, String issuer)
+			throws GeneralSecurityException, JWTVerificationException {
+		Validate.notNull(jwt, "jwt must not be null");
+		Validate.notBlank(issuer, "issuer must not be blank");
+		String kid = jwt.getKeyId();
+		if (kid == null || kid.isBlank()) {
+			throw new GeneralSecurityException("Token has no kid");
 		}
-		Algorithm algorithm = getAlgorithm(jwt, publicKey);
-		JWTVerifier verifier = JWT.require(algorithm).build();
+		Object publicKey;
+		try {
+			Jwk jwk = jwkProvider.get(kid);
+			if (jwk.getUsage() != null && !"sig".equals(jwk.getUsage())) {
+				throw new GeneralSecurityException("Key " + kid + " is not a signing key");
+			}
+			publicKey = jwk.getPublicKey();
+		} catch (JwkException e) {
+			throw new GeneralSecurityException("Unable to resolve signing key " + kid, e);
+		}
+		JWTVerifier verifier = JWT.require(getAlgorithm(jwt, publicKey)).withIssuer(issuer).build();
 		verifier.verify(jwt);
 	}
 
-	public static RSAPublicKey getKey(String kid, String jwksUrl) throws RestClientException,
-			NoSuchAlgorithmException, InvalidKeySpecException {
-		Validate.notBlank(kid, "kid must not be blank");
-		Validate.notBlank(jwksUrl, "jwksUrl must not be blank");
-		RestTemplate restTemplate = new RestTemplate();
-		ResponseEntity<String> response = restTemplate.getForEntity(jwksUrl, String.class);
-		String rawE = null;
-		String rawN = null;
-		JSONObject jwks = new JSONObject(response.getBody());
-		JSONArray keys = jwks.getJSONArray("keys");
-		for (int i = 0; i < keys.length(); i++) {
-			JSONObject key = keys.getJSONObject(i);
-			if (kid.equals(key.get("kid"))) {
-				rawE = key.getString("e");
-				rawN = key.getString("n");
-				break;
-			}
+	private static JwkProvider buildJwkProvider(String jwksUrl) {
+		try {
+			return new JwkProviderBuilder(URI.create(jwksUrl).toURL())
+					.cached(10, 24, TimeUnit.HOURS)
+					.rateLimited(10, 1, TimeUnit.MINUTES)
+					.build();
+		} catch (MalformedURLException | IllegalArgumentException e) {
+			throw new IllegalArgumentException("Invalid jwksUrl: " + jwksUrl, e);
 		}
-		BigInteger e = new BigInteger(1, Base64.getUrlDecoder().decode(rawE));
-		BigInteger n = new BigInteger(1, Base64.getUrlDecoder().decode(rawN));
-		KeyFactory kf = KeyFactory.getInstance("RSA");
-		RSAPublicKeySpec publicKeySpec = new RSAPublicKeySpec(n, e);
-		return (RSAPublicKey)kf.generatePublic(publicKeySpec);
 	}
 
 	public static List<String> getClientRoles(DecodedJWT jwt, String clientId) {
