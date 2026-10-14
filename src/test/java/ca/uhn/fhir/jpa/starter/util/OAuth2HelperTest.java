@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.math.BigInteger;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -15,7 +17,9 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -28,6 +32,7 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.IncorrectClaimException;
 import com.auth0.jwt.exceptions.SignatureVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.sun.net.httpserver.HttpServer;
 
 class OAuth2HelperTest {
 
@@ -108,6 +113,34 @@ class OAuth2HelperTest {
 		assertEquals(3, lookups.get());
 	}
 
+	@Test
+	void newKidPublishedAfterFirstFetchIsResolvedByRefetchingTheJwks() throws Exception {
+		Map<String, KeyPair> published = new ConcurrentHashMap<>(Map.of("kid-1", key1));
+		AtomicInteger fetches = new AtomicInteger();
+		HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+		server.createContext("/jwks", exchange -> {
+			fetches.incrementAndGet();
+			byte[] body = jwksJson(published).getBytes(StandardCharsets.UTF_8);
+			exchange.getResponseHeaders().add("Content-Type", "application/json");
+			exchange.sendResponseHeaders(200, body.length);
+			exchange.getResponseBody().write(body);
+			exchange.close();
+		});
+		server.start();
+		try {
+			String jwksUrl = "http://localhost:" + server.getAddress().getPort() + "/jwks";
+			OAuth2Helper.verify(token(key1, "kid-1", ISSUER), jwksUrl, ISSUER);
+			OAuth2Helper.verify(token(key1, "kid-1", ISSUER), jwksUrl, ISSUER);
+			assertEquals(1, fetches.get());
+
+			published.put("kid-2", key2);
+			OAuth2Helper.verify(token(key2, "kid-2", ISSUER), jwksUrl, ISSUER);
+			assertEquals(2, fetches.get());
+		} finally {
+			server.stop(0);
+		}
+	}
+
 	private static DecodedJWT token(KeyPair key, String kid, String issuer) {
 		Algorithm algorithm = Algorithm.RSA256((RSAPublicKey) key.getPublic(), (RSAPrivateKey) key.getPrivate());
 		return JWT.decode(JWT.create().withKeyId(kid).withIssuer(issuer).withSubject("subject").sign(algorithm));
@@ -133,6 +166,16 @@ class OAuth2HelperTest {
 		values.put("n", base64Url(publicKey.getModulus()));
 		values.put("e", base64Url(publicKey.getPublicExponent()));
 		return Jwk.fromValues(values);
+	}
+
+	private static String jwksJson(Map<String, KeyPair> keys) {
+		return keys.entrySet().stream()
+				.map(e -> {
+					RSAPublicKey publicKey = (RSAPublicKey) e.getValue().getPublic();
+					return "{\"kty\":\"RSA\",\"kid\":\"" + e.getKey() + "\",\"alg\":\"RS256\",\"use\":\"sig\",\"n\":\""
+							+ base64Url(publicKey.getModulus()) + "\",\"e\":\"" + base64Url(publicKey.getPublicExponent()) + "\"}";
+				})
+				.collect(Collectors.joining(",", "{\"keys\":[", "]}"));
 	}
 
 	private static String base64Url(BigInteger value) {
