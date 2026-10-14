@@ -48,6 +48,7 @@ class OAuthAuthorizationInterceptorTest {
 		myAppProperties.getOauth().setAdmin_role("admin-role");
 		myAppProperties.getOauth().setAudit_role("audit-api-role");
 		myAppProperties.getOauth().setJwks_url("http://example.org/jwks");
+		myAppProperties.getOauth().setIssuer("https://auth.example.com/auth/realms/product");
 
 		myInterceptor = new OAuthAuthorizationInterceptor(myAppProperties);
 		myRequestDetails = mock(RequestDetails.class);
@@ -100,13 +101,13 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of());
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
 			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
 			assertRuleListMatches(rules, unauthorizedRules());
-			helperMock.verify(() -> OAuth2Helper.verify(myDecodedJwt, "http://example.org/jwks"), times(1));
+			helperMock.verify(() -> OAuth2Helper.verify(myDecodedJwt, "http://example.org/jwks", "https://auth.example.com/auth/realms/product"), times(1));
 			helperMock.verify(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a"), times(1));
 		}
 	}
@@ -119,7 +120,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
 			helperMock.when(() -> OAuth2Helper.getClaimAsString(myDecodedJwt, "patient")).thenReturn(null);
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
@@ -138,7 +139,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("user-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -153,7 +154,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("reporting-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -168,7 +169,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
 			helperMock.when(() -> OAuth2Helper.getClaimAsString(myDecodedJwt, "patient")).thenReturn(null);
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
@@ -187,7 +188,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("user-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -205,7 +206,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("audit-api-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -224,7 +225,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("user-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -243,7 +244,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -262,7 +263,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("audit-api-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -280,7 +281,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("user-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -299,7 +300,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -317,7 +318,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -335,7 +336,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("audit-api-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -354,7 +355,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("audit-api-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -373,7 +374,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("user-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -392,7 +393,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -411,7 +412,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("audit-api-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -430,7 +431,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("audit-api-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -448,7 +449,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -466,7 +467,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("audit-api-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -484,7 +485,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("user-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -502,7 +503,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -520,7 +521,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("user-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -538,7 +539,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -557,7 +558,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("user-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -576,7 +577,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("user-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -595,7 +596,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("user-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -617,7 +618,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("user-role"));
 			helperMock.when(() -> OAuth2Helper.getClaimAsString(myDecodedJwt, "patient")).thenReturn("456");
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
@@ -638,7 +639,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
 			helperMock.when(() -> OAuth2Helper.getClaimAsString(myDecodedJwt, "patient")).thenReturn(null);
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
@@ -658,7 +659,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("user-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -677,7 +678,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("user-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -697,7 +698,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
 			helperMock.when(() -> OAuth2Helper.getClaimAsString(myDecodedJwt, "patient")).thenReturn(null);
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
@@ -718,7 +719,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
 			helperMock.when(() -> OAuth2Helper.getClaimAsString(myDecodedJwt, "patient")).thenReturn(null);
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
@@ -738,7 +739,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("user-role"));
 			helperMock.when(() -> OAuth2Helper.getClaimAsString(myDecodedJwt, "patient")).thenReturn(null);
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
@@ -756,7 +757,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("user-role"));
 			helperMock.when(() -> OAuth2Helper.getClaimAsString(myDecodedJwt, "patient")).thenReturn("456");
 			helperMock.when(() -> OAuth2Helper.canBeInPatientCompartment("Observation")).thenReturn(true);
@@ -776,7 +777,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("user-role"));
 			helperMock.when(() -> OAuth2Helper.getClaimAsString(myDecodedJwt, "patient")).thenReturn("456");
 			helperMock.when(() -> OAuth2Helper.canBeInPatientCompartment("Binary")).thenReturn(false);
@@ -794,7 +795,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString()))
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString()))
 				.thenThrow(new NoSuchAlgorithmException("unsupported"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
@@ -808,7 +809,7 @@ class OAuthAuthorizationInterceptorTest {
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
 			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
 			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
-			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString()))
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString()))
 				.thenThrow(new RuntimeException("bad signature"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 

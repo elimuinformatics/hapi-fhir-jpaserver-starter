@@ -85,7 +85,7 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 		try {
 			DecodedJWT jwt = JWT.decode(token);
 			String jwksUrl = config.getOauth().getJwks_url();
-			OAuth2Helper.verify(jwt, jwksUrl);
+			OAuth2Helper.verify(jwt, jwksUrl, config.getOauth().getIssuer());
 
 			List<String> clientRoles = OAuth2Helper.getClientRoles(jwt, getOAuthClientId());
 			if (clientRoles.isEmpty()) {

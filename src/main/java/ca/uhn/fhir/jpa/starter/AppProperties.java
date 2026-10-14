@@ -1,11 +1,13 @@
 package ca.uhn.fhir.jpa.starter;
 
+import ca.uhn.fhir.context.ConfigurationException;
 import ca.uhn.fhir.context.FhirVersionEnum;
 import ca.uhn.fhir.jpa.api.config.JpaStorageSettings.ClientIdStrategyEnum;
 import ca.uhn.fhir.jpa.api.config.JpaStorageSettings.IdStrategyEnum;
 import ca.uhn.fhir.jpa.model.entity.NormalizedQuantitySearchLevel;
 import ca.uhn.fhir.jpa.packages.PackageInstallationSpec;
 import ca.uhn.fhir.rest.api.EncodingEnum;
+import jakarta.annotation.PostConstruct;
 import org.hl7.fhir.r4.model.Bundle;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -265,6 +267,15 @@ public class AppProperties {
 
 	public Oauth getOauth() {
 		return oauth;
+	}
+
+	@PostConstruct
+	void validateOauth() {
+		if (Boolean.TRUE.equals(oauth.getEnabled())
+				&& (oauth.getIssuer() == null || oauth.getIssuer().isBlank())) {
+			throw new ConfigurationException(
+					"hapi.fhir.oauth.issuer (OAUTH_ISSUER) must be set when hapi.fhir.oauth.enabled is true");
+		}
 	}
 
 	public void setOauth(Oauth oauth) {
@@ -775,6 +786,7 @@ public class AppProperties {
 
   public static class Oauth {
     private Boolean enabled = false;
+    private String issuer;
     private String jwks_url;
     private String authorize_url;
     private String token_url;
@@ -790,6 +802,14 @@ public class AppProperties {
 
     public void setEnabled(Boolean enabled) {
       this.enabled = enabled;
+    }
+
+    public String getIssuer() {
+      return issuer;
+    }
+
+    public void setIssuer(String issuer) {
+      this.issuer = issuer;
     }
 
     public String getJwks_url() {
