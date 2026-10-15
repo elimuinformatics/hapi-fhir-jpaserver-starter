@@ -1,6 +1,7 @@
 package ca.uhn.fhir.jpa.starter.interceptor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -9,8 +10,11 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
+import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.hl7.fhir.r4.model.IdType;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +26,8 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
 
 import ca.uhn.fhir.jpa.starter.AppProperties;
+import ca.uhn.fhir.jpa.starter.identity.ActingIdentity;
+import ca.uhn.fhir.jpa.starter.identity.ActingIdentityResolver;
 import ca.uhn.fhir.jpa.starter.util.OAuth2Helper;
 import ca.uhn.fhir.rest.api.Constants;
 import ca.uhn.fhir.rest.api.RequestTypeEnum;
@@ -814,6 +820,73 @@ class OAuthAuthorizationInterceptorTest {
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
 
 			assertThrows(AuthenticationException.class, () -> myInterceptor.buildRuleList(myRequestDetails));
+		}
+	}
+
+	@Test
+	void buildRuleList_verifiedToken_storesActingIdentity() {
+		Map<Object, Object> userData = new HashMap<>();
+		when(myRequestDetails.getUserData()).thenReturn(userData);
+		when(myRequestDetails.getHeader(ActingIdentityResolver.HEADER)).thenReturn("none");
+		myAppProperties.getOauth().setIdentity_header_clients(List.of("omnibus-api"));
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class);
+			 MockedStatic<ActingIdentityResolver> resolverMock = mockStatic(ActingIdentityResolver.class)) {
+			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
+			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
+			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
+			resolverMock.when(() -> ActingIdentityResolver.resolve(myDecodedJwt, "none", List.of("omnibus-api")))
+				.thenReturn(ActingIdentity.NO_PERSON);
+
+			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
+			assertRuleListMatches(rules, allowAllRules());
+			assertEquals(ActingIdentity.NO_PERSON, userData.get(ActingIdentity.USER_DATA_KEY));
+
+			myInterceptor.buildRuleList(myRequestDetails);
+			resolverMock.verify(() -> ActingIdentityResolver.resolve(any(), any(), any()), times(1));
+		}
+	}
+
+	@Test
+	void buildRuleList_resolverFailure_storesLostAndKeepsTheRules() {
+		Map<Object, Object> userData = new HashMap<>();
+		when(myRequestDetails.getUserData()).thenReturn(userData);
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class);
+			 MockedStatic<ActingIdentityResolver> resolverMock = mockStatic(ActingIdentityResolver.class)) {
+			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
+			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
+			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
+			resolverMock.when(() -> ActingIdentityResolver.resolve(any(), any(), any()))
+				.thenThrow(new IllegalStateException("boom"));
+
+			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
+			assertRuleListMatches(rules, allowAllRules());
+			assertEquals(ActingIdentity.LOST, userData.get(ActingIdentity.USER_DATA_KEY));
+		}
+	}
+
+	@Test
+	void buildRuleList_tokenVerificationFailure_storesNoActingIdentity() {
+		Map<Object, Object> userData = new HashMap<>();
+		when(myRequestDetails.getUserData()).thenReturn(userData);
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
+			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
+			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString()))
+				.thenThrow(new GeneralSecurityException("wrong issuer"));
+			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
+
+			assertThrows(AuthenticationException.class, () -> myInterceptor.buildRuleList(myRequestDetails));
+			assertFalse(userData.containsKey(ActingIdentity.USER_DATA_KEY));
 		}
 	}
 
