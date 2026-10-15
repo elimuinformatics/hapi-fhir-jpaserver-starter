@@ -600,7 +600,7 @@ Backend services call this server with a service token, so the token alone does 
 - `NO_PERSON`: `X-Acting-Identity: none`.
 - `LOST`: anything else, including a malformed claim or header, a header from a client that is not allowlisted, or no identity at all.
 
-Resolution order is the `practitioner` claim, then the `patient` claim, then the header. A claim always wins over the header, and a malformed claim resolves to `LOST` rather than falling through to the header.
+Resolution order is the `practitioner` claim, then the `patient` claim, then the header. A claim that is present always wins: if it is blank, null, not a string or otherwise malformed, the request resolves to `LOST` rather than falling through to the next claim or the header. Only a missing claim falls through.
 
 ### Header contract (for calling services)
 

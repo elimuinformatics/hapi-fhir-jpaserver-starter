@@ -180,12 +180,27 @@ class ActingIdentityResolverTest {
 		assertEquals(ActingIdentity.LOST, resolve(jwt, "Patient/fromHeader"));
 	}
 
-	@Test
-	void blankClaims_fallThroughToTheHeader() {
-		ActingIdentity identity = resolve(token(Map.of("azp", "omnibus-api", "practitioner", " ", "patient", "")),
-			"Practitioner/abc");
+	@ParameterizedTest
+	@ValueSource(strings = {"practitioner", "patient"})
+	void blankClaim_resolvesToLostAndIgnoresTheHeader(String claimName) {
+		assertEquals(ActingIdentity.LOST, resolve(token(Map.of("azp", "omnibus-api", claimName, " ")), "none"));
+	}
 
-		assertEquals("Practitioner/abc", identity.getReference());
+	@ParameterizedTest
+	@ValueSource(strings = {"practitioner", "patient"})
+	void nullClaim_resolvesToLostAndIgnoresTheHeader(String claimName) {
+		DecodedJWT jwt = JWT.decode(JWT.create()
+			.withClaim("azp", "omnibus-api")
+			.withNullClaim(claimName)
+			.sign(Algorithm.HMAC256("test-secret")));
+
+		assertEquals(ActingIdentity.LOST, resolve(jwt, "none"));
+	}
+
+	@Test
+	void blankPractitionerClaim_resolvesToLostDespiteAValidPatientClaim() {
+		assertEquals(ActingIdentity.LOST,
+			resolve(token(Map.of("azp", "omnibus-api", "practitioner", "", "patient", "456")), null));
 	}
 
 	@Test

@@ -28,12 +28,12 @@ public final class ActingIdentityResolver {
 
 	public static ActingIdentity resolve(DecodedJWT jwt, String header, Collection<String> headerClients) {
 		Claim practitionerClaim = jwt.getClaim(PRACTITIONER_CLAIM);
-		if (hasValue(practitionerClaim)) {
+		if (isPresent(practitionerClaim)) {
 			return orLost(parseReference(practitionerClaim.asString(), PRACTITIONER, false), "practitioner claim");
 		}
 
 		Claim patientClaim = jwt.getClaim(PATIENT_CLAIM);
-		if (hasValue(patientClaim)) {
+		if (isPresent(patientClaim)) {
 			return orLost(parseReference(patientClaim.asString(), PATIENT, true), "patient claim");
 		}
 
@@ -67,7 +67,7 @@ public final class ActingIdentityResolver {
 	}
 
 	private static ActingIdentity parseReference(String value, String resourceType, boolean bareIdAllowed) {
-		if (value == null) {
+		if (StringUtils.isBlank(value)) {
 			return null;
 		}
 		IdType idType;
@@ -93,12 +93,8 @@ public final class ActingIdentityResolver {
 			: ActingIdentity.patient(baseUrl, id);
 	}
 
-	private static boolean hasValue(Claim claim) {
-		if (claim == null || claim.isMissing() || claim.isNull()) {
-			return false;
-		}
-		String value = claim.asString();
-		return value == null || StringUtils.isNotBlank(value);
+	private static boolean isPresent(Claim claim) {
+		return claim != null && !claim.isMissing();
 	}
 
 	private static String claim(DecodedJWT jwt, String name) {
