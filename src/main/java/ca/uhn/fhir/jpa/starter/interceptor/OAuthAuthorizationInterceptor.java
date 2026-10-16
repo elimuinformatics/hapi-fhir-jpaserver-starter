@@ -2,6 +2,7 @@ package ca.uhn.fhir.jpa.starter.interceptor;
 
 import java.security.GeneralSecurityException;
 import java.util.List;
+import java.util.Map;
 
 import org.hl7.fhir.r4.model.IdType;
 import org.slf4j.Logger;
@@ -13,6 +14,8 @@ import com.google.common.base.Strings;
 
 import ca.uhn.fhir.interceptor.api.Interceptor;
 import ca.uhn.fhir.jpa.starter.AppProperties;
+import ca.uhn.fhir.jpa.starter.identity.ActingIdentity;
+import ca.uhn.fhir.jpa.starter.identity.ActingIdentityResolver;
 import ca.uhn.fhir.jpa.starter.util.OAuth2Helper;
 import ca.uhn.fhir.rest.api.Constants;
 import ca.uhn.fhir.rest.api.RequestTypeEnum;
@@ -86,6 +89,7 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 			DecodedJWT jwt = JWT.decode(token);
 			String jwksUrl = config.getOauth().getJwks_url();
 			OAuth2Helper.verify(jwt, jwksUrl, config.getOauth().getIssuer());
+			resolveActingIdentity(theRequest, jwt);
 
 			List<String> clientRoles = OAuth2Helper.getClientRoles(jwt, getOAuthClientId());
 			if (clientRoles.isEmpty()) {
@@ -131,6 +135,22 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 			logger.warn("Authentication failure - unable to decode token", e);
 			throw new AuthenticationException("Invalid authorization header: token parsing failed - " + e.getMessage(), e);
 		}
+	}
+
+	private void resolveActingIdentity(RequestDetails theRequest, DecodedJWT jwt) {
+		Map<Object, Object> userData = theRequest.getUserData();
+		if (userData.containsKey(ActingIdentity.USER_DATA_KEY)) {
+			return;
+		}
+		ActingIdentity identity;
+		try {
+			identity = ActingIdentityResolver.resolve(jwt, theRequest.getHeader(ActingIdentityResolver.HEADER),
+				config.getOauth().getIdentity_header_clients());
+		} catch (RuntimeException e) {
+			logger.warn("Unable to resolve the acting identity; recording it as lost", e);
+			identity = ActingIdentity.LOST;
+		}
+		userData.put(ActingIdentity.USER_DATA_KEY, identity);
 	}
 
 	private List<IAuthRule> authorizeAuditEventRequest(RequestDetails theRequest, List<String> clientRoles) {

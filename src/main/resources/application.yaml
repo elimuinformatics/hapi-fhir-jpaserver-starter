@@ -292,6 +292,7 @@ hapi:
       authorize_url: ${OAUTH_AUTHORIZE_URL}
       token_url: ${OAUTH_TOKEN_URL}
       manage_url: ${OAUTH_MANAGE_URL}
+      identity_header_clients: ${OAUTH_IDENTITY_HEADER_CLIENTS:}
 
     smart:
       issuer: ${SMART_ISSUER}
