@@ -14,7 +14,7 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 public final class ActingIdentityResolver {
 	private static final Logger logger = LoggerFactory.getLogger(ActingIdentityResolver.class);
 
-	public static final String HEADER = "X-Acting-Identity";
+	public static final String HEADER = "X-Request-User";
 	public static final String NO_PERSON_VALUE = "none";
 
 	private static final String PRACTITIONER = "Practitioner";

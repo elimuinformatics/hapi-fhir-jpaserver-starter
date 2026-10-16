@@ -595,16 +595,16 @@ Backend services call this server with a service token, so the token alone does 
 
 `OAuthAuthorizationInterceptor` resolves every verified request to exactly one state and stores it on the request; read it with `ActingIdentity.from(requestDetails)`.
 
-- `PRACTITIONER`: the token's `practitioner` claim, else the `X-Acting-Identity` header.
-- `PATIENT`: the token's `patient` claim, else the `X-Acting-Identity` header.
-- `NO_PERSON`: `X-Acting-Identity: none`.
+- `PRACTITIONER`: the token's `practitioner` claim, else the `X-Request-User` header.
+- `PATIENT`: the token's `patient` claim, else the `X-Request-User` header.
+- `NO_PERSON`: `X-Request-User: none`.
 - `LOST`: anything else, including a malformed claim or header, a header from a client that is not allowlisted, or no identity at all.
 
 Resolution order is the `practitioner` claim, then the `patient` claim, then the header. A claim that is present always wins: if it is blank, null, not a string or otherwise malformed, the request resolves to `LOST` rather than falling through to the next claim or the header. Only a missing claim falls through.
 
 ### Header contract (for calling services)
 
-- Header name: `X-Acting-Identity`.
+- Header name: `X-Request-User`.
 - Accepted values: `Practitioner/<id>`, `Patient/<id>`, the absolute form of either (for example a `fhirUser` URL), or `none`.
 - A bare id is rejected, so a service forwarding an Engage `patient` claim must send `Patient/<id>`.
 - Versioned references (`.../_history/<n>`) are rejected.
@@ -640,7 +640,7 @@ Based on your provided runtime `application.yaml`, this section captures what is
   - external mutation (`PUT/PATCH/DELETE`) is blocked,
   - interceptor-internal writes are allowed.
 - Implement the policy "audit-privileged principal == token with `admin_role`".
-- Add `identity_header_clients: ${OAUTH_IDENTITY_HEADER_CLIENTS:}` under `hapi.fhir.oauth`. A runtime config loaded with `--spring.config.location` replaces this repo's `application.yaml`, so without it the allowlist is empty and every `X-Acting-Identity` header is ignored.
+- Add `identity_header_clients: ${OAUTH_IDENTITY_HEADER_CLIENTS:}` under `hapi.fhir.oauth`. A runtime config loaded with `--spring.config.location` replaces this repo's `application.yaml`, so without it the allowlist is empty and every `X-Request-User` header is ignored.
 - Audit persistence failure behavior is fail-open:
   - business operation must succeed even if audit write fails.
 
