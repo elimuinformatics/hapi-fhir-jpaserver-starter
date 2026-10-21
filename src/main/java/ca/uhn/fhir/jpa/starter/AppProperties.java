@@ -795,6 +795,7 @@ public class AppProperties {
     private String user_role;
     private String admin_role;
     private String audit_role;
+    private List<String> identity_header_clients = new ArrayList<>();
 
     public Boolean getEnabled() {
       return enabled;
@@ -874,6 +875,14 @@ public class AppProperties {
 
     public void setAudit_role(String audit_role) {
       this.audit_role = audit_role;
+    }
+
+    public List<String> getIdentity_header_clients() {
+      return identity_header_clients;
+    }
+
+    public void setIdentity_header_clients(List<String> identity_header_clients) {
+      this.identity_header_clients = identity_header_clients;
     }
   }
 
