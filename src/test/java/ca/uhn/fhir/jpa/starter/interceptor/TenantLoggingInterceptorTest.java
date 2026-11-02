@@ -139,27 +139,60 @@ class TenantLoggingInterceptorTest {
 	}
 
 	@Test
+	void dedicatedServer_setsTenantBeforeAuthorization() {
+		myAppProperties.getTenant_logging().setTenant("baystate");
+		when(myRequestDetails.getTenantId()).thenReturn("sapphire");
+
+		new TenantLoggingInterceptor(myAppProperties).incomingRequestPostProcessed(myRequestDetails);
+
+		assertEquals("baystate", MDC.get(TenantLoggingInterceptor.TENANT));
+	}
+
+	@Test
+	void sharedServer_setsTenantBeforeAuthorization() {
+		myAppProperties.getTenant_logging().setPartition_tenants(SHARED_PARTITIONS);
+		when(myRequestDetails.getTenantId()).thenReturn("e2e-ehr");
+
+		new TenantLoggingInterceptor(myAppProperties).incomingRequestPostProcessed(myRequestDetails);
+
+		assertEquals("elimu_e2e", MDC.get(TenantLoggingInterceptor.TENANT));
+	}
+
+	@Test
+	void noTenantConfig_setsNoTenantBeforeAuthorization() {
+		myUserData.put(TenantLoggingInterceptor.TENANT_CLAIM_USER_DATA_KEY, "elimu_demo");
+		when(myRequestDetails.getTenantId()).thenReturn("sapphire");
+
+		new TenantLoggingInterceptor(myAppProperties).incomingRequestPostProcessed(myRequestDetails);
+
+		assertNull(MDC.get(TenantLoggingInterceptor.TENANT));
+	}
+
+	@Test
 	void processingCompleted_clearsTenant() {
 		myAppProperties.getTenant_logging().setTenant("baystate");
 		TenantLoggingInterceptor interceptor = new TenantLoggingInterceptor(myAppProperties);
 		when(myRequestDetails.getTenantId()).thenReturn("sapphire");
 
-		interceptor.incomingRequestPreHandled(myRequestDetails);
+		interceptor.incomingRequestPostProcessed(myRequestDetails);
 		assertEquals("baystate", MDC.get(TenantLoggingInterceptor.TENANT));
 
 		interceptor.processingCompleted(myRequestDetails);
 		assertNull(MDC.get(TenantLoggingInterceptor.TENANT));
 	}
 
+	// Runs both hooks in the order RestfulServer calls them, with authorization's claim hand-off between.
 	private String tenantFor(String partition, String claim) {
 		MDC.remove(TenantLoggingInterceptor.TENANT);
 		myUserData.clear();
+		when(myRequestDetails.getTenantId()).thenReturn(partition);
+		TenantLoggingInterceptor interceptor = new TenantLoggingInterceptor(myAppProperties);
+
+		interceptor.incomingRequestPostProcessed(myRequestDetails);
 		if (claim != null) {
 			myUserData.put(TenantLoggingInterceptor.TENANT_CLAIM_USER_DATA_KEY, claim);
 		}
-		when(myRequestDetails.getTenantId()).thenReturn(partition);
-
-		new TenantLoggingInterceptor(myAppProperties).incomingRequestPreHandled(myRequestDetails);
+		interceptor.incomingRequestPreHandled(myRequestDetails);
 		return MDC.get(TenantLoggingInterceptor.TENANT);
 	}
 
