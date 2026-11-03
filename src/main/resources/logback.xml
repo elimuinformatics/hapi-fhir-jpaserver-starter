@@ -8,6 +8,7 @@
 			<includeMdcKeyName>correlationId</includeMdcKeyName>
 			<includeMdcKeyName>launchId</includeMdcKeyName>
 			<includeMdcKeyName>app</includeMdcKeyName>
+			<includeMdcKeyName>tenant</includeMdcKeyName>
 			<fieldNames>
 				<timestamp>[ignore]</timestamp>
 				<version>[ignore]</version>

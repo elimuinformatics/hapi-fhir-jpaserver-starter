@@ -90,6 +90,7 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 			String jwksUrl = config.getOauth().getJwks_url();
 			OAuth2Helper.verify(jwt, jwksUrl, config.getOauth().getIssuer());
 			resolveActingIdentity(theRequest, jwt);
+			storeTenantClaim(theRequest, jwt);
 
 			List<String> clientRoles = OAuth2Helper.getClientRoles(jwt, getOAuthClientId());
 			if (clientRoles.isEmpty()) {
@@ -151,6 +152,13 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 			identity = ActingIdentity.LOST;
 		}
 		userData.put(ActingIdentity.USER_DATA_KEY, identity);
+	}
+
+	private void storeTenantClaim(RequestDetails theRequest, DecodedJWT jwt) {
+		String tenant = OAuth2Helper.getClaimAsString(jwt, TenantLoggingInterceptor.TENANT_CLAIM);
+		if (!Strings.isNullOrEmpty(tenant)) {
+			theRequest.getUserData().put(TenantLoggingInterceptor.TENANT_CLAIM_USER_DATA_KEY, tenant);
+		}
 	}
 
 	private List<IAuthRule> authorizeAuditEventRequest(RequestDetails theRequest, List<String> clientRoles) {

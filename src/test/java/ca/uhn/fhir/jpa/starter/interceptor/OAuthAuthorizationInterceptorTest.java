@@ -890,6 +890,62 @@ class OAuthAuthorizationInterceptorTest {
 		}
 	}
 
+	@Test
+	void buildRuleList_verifiedTokenWithTenantClaim_storesTenantClaim() {
+		Map<Object, Object> userData = new HashMap<>();
+		when(myRequestDetails.getUserData()).thenReturn(userData);
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
+			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
+			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
+			helperMock.when(() -> OAuth2Helper.getClaimAsString(myDecodedJwt, "tenant")).thenReturn("elimu_e2e");
+			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
+
+			myInterceptor.buildRuleList(myRequestDetails);
+			assertEquals("elimu_e2e", userData.get(TenantLoggingInterceptor.TENANT_CLAIM_USER_DATA_KEY));
+		}
+	}
+
+	@Test
+	void buildRuleList_verifiedTokenWithoutTenantClaim_storesNoTenantClaim() {
+		Map<Object, Object> userData = new HashMap<>();
+		when(myRequestDetails.getUserData()).thenReturn(userData);
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
+			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
+			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
+			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("admin-role"));
+			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
+
+			myInterceptor.buildRuleList(myRequestDetails);
+			assertFalse(userData.containsKey(TenantLoggingInterceptor.TENANT_CLAIM_USER_DATA_KEY));
+		}
+	}
+
+	@Test
+	void buildRuleList_tokenVerificationFailure_storesNoTenantClaim() {
+		Map<Object, Object> userData = new HashMap<>();
+		when(myRequestDetails.getUserData()).thenReturn(userData);
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
+			helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
+			helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
+			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString()))
+				.thenThrow(new GeneralSecurityException("wrong issuer"));
+			helperMock.when(() -> OAuth2Helper.getClaimAsString(myDecodedJwt, "tenant")).thenReturn("elimu_e2e");
+			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
+
+			assertThrows(AuthenticationException.class, () -> myInterceptor.buildRuleList(myRequestDetails));
+			assertFalse(userData.containsKey(TenantLoggingInterceptor.TENANT_CLAIM_USER_DATA_KEY));
+		}
+	}
+
 	private void assertRuleListMatches(List<IAuthRule> actual, List<IAuthRule> expected) {
 		assertEquals(expected.size(), actual.size(), "Rule count mismatch");
 		for (int i = 0; i < expected.size(); i++) {
