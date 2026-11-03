@@ -53,7 +53,6 @@ import ca.uhn.fhir.jpa.starter.interceptor.OAuthAuthorizationInterceptor;
 import ca.uhn.fhir.jpa.starter.interceptor.OAuthConsentService;
 import ca.uhn.fhir.jpa.starter.interceptor.OAuthSearchNarrowingInterceptor;
 import ca.uhn.fhir.jpa.starter.interceptor.SmartWellKnownInterceptor;
-import ca.uhn.fhir.jpa.starter.interceptor.TenantLoggingInterceptor;
 import ca.uhn.fhir.jpa.starter.util.EnvironmentHelper;
 import ca.uhn.fhir.jpa.subscription.util.SubscriptionDebugLogInterceptor;
 import ca.uhn.fhir.jpa.util.ResourceCountCache;
@@ -465,9 +464,6 @@ public class StarterJpaConfig {
 
 		// reindex Provider $reindex
 		fhirServer.registerProvider(reindexProvider);
-
-		// Tenant on each request's log lines; falls back to the configured tenant without a token
-		fhirServer.registerInterceptor(new TenantLoggingInterceptor(appProperties));
 
 		// Support for OAuth 2.0 authentication
 		if (appProperties.getOauth().getEnabled()) {

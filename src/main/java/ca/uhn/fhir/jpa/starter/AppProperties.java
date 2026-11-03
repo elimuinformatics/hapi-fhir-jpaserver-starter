@@ -8,14 +8,12 @@ import ca.uhn.fhir.jpa.model.entity.NormalizedQuantitySearchLevel;
 import ca.uhn.fhir.jpa.packages.PackageInstallationSpec;
 import ca.uhn.fhir.rest.api.EncodingEnum;
 import jakarta.annotation.PostConstruct;
-import org.apache.commons.lang3.StringUtils;
 import org.hl7.fhir.r4.model.Bundle;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -113,7 +111,6 @@ public class AppProperties {
 	private String server_path = "/fhir";
 	private Oauth oauth = new Oauth();
 	private Smart smart = new Smart();
-	private TenantLogging tenant_logging = new TenantLogging();
 
 	public List<String> getCustomInterceptorClasses() {
 		return custom_interceptor_classes;
@@ -273,11 +270,6 @@ public class AppProperties {
 	}
 
 	@PostConstruct
-	void validate() {
-		validateOauth();
-		tenant_logging.validate();
-	}
-
 	void validateOauth() {
 		if (Boolean.TRUE.equals(oauth.getEnabled())
 				&& (oauth.getIssuer() == null || oauth.getIssuer().isBlank())) {
@@ -296,14 +288,6 @@ public class AppProperties {
 
 	public void setSmart(Smart smart) {
 		this.smart = smart;
-	}
-
-	public TenantLogging getTenant_logging() {
-		return tenant_logging;
-	}
-
-	public void setTenant_logging(TenantLogging tenant_logging) {
-		this.tenant_logging = tenant_logging;
 	}
 
 	public Logger getLogger() {
@@ -1149,62 +1133,6 @@ public class AppProperties {
 
 		public void setRequest_tenant_partitioning_mode(boolean theRequest_tenant_partitioning_mode) {
 			request_tenant_partitioning_mode = theRequest_tenant_partitioning_mode;
-		}
-	}
-
-	// The tenant logged on each request. A dedicated server sets `tenant`; the shared server sets
-	// `partition_tenants` as `partition=tenant` entries. Setting both is refused at startup, because the
-	// shared map would label a dedicated server's customer traffic as an internal tenant.
-	public static class TenantLogging {
-
-		private String tenant;
-		private List<String> partition_tenants = new ArrayList<>();
-
-		public String getTenant() {
-			return tenant;
-		}
-
-		public void setTenant(String tenant) {
-			this.tenant = tenant;
-		}
-
-		public List<String> getPartition_tenants() {
-			return partition_tenants;
-		}
-
-		public void setPartition_tenants(List<String> partition_tenants) {
-			this.partition_tenants = partition_tenants;
-		}
-
-		void validate() {
-			Map<String, String> partitionTenants = parsePartitionTenants();
-			if (StringUtils.isNotBlank(tenant) && !partitionTenants.isEmpty()) {
-				throw new ConfigurationException(
-						"hapi.fhir.tenant_logging.tenant and hapi.fhir.tenant_logging.partition_tenants must not both be set");
-			}
-		}
-
-		public Map<String, String> parsePartitionTenants() {
-			Map<String, String> result = new HashMap<>();
-			if (partition_tenants == null) {
-				return result;
-			}
-			for (String entry : partition_tenants) {
-				if (StringUtils.isBlank(entry)) {
-					continue;
-				}
-				String partition = StringUtils.trimToNull(StringUtils.substringBefore(entry, "="));
-				String partitionTenant = entry.contains("=")
-						? StringUtils.trimToNull(StringUtils.substringAfter(entry, "="))
-						: null;
-				if (partition == null || partitionTenant == null || result.containsKey(partition)) {
-					throw new ConfigurationException(
-							"Invalid hapi.fhir.tenant_logging.partition_tenants entry '" + entry
-									+ "'; expected a unique partition=tenant");
-				}
-				result.put(partition, partitionTenant);
-			}
-			return result;
 		}
 	}
 

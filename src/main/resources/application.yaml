@@ -293,11 +293,6 @@ hapi:
       token_url: ${OAUTH_TOKEN_URL}
       manage_url: ${OAUTH_MANAGE_URL}
       identity_header_clients: ${OAUTH_IDENTITY_HEADER_CLIENTS:}
-    # The tenant logged on each request. Set one or the other, never both:
-    # tenant on a dedicated server, partition_tenants (partition=tenant,...) on the shared server.
-    tenant_logging:
-      tenant: ${HAPI_TENANT:}
-      partition_tenants: ${HAPI_PARTITION_TENANTS:}
 
     smart:
       issuer: ${SMART_ISSUER}
