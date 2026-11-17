@@ -19,6 +19,7 @@ import ca.uhn.fhir.jpa.starter.identity.ActingIdentityResolver;
 import ca.uhn.fhir.jpa.starter.util.OAuth2Helper;
 import ca.uhn.fhir.rest.api.Constants;
 import ca.uhn.fhir.rest.api.RequestTypeEnum;
+import ca.uhn.fhir.rest.api.RestOperationTypeEnum;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.server.exceptions.AuthenticationException;
 import ca.uhn.fhir.rest.server.interceptor.auth.AuthorizationInterceptor;
@@ -126,6 +127,10 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 				}
 			}
 
+			if (isTransactionRequest(theRequest) && hasAuditRole(clientRoles)) {
+				return auditEventTransactionRule();
+			}
+
 			logger.warn("Authorization failure - token doesn't have the required client roles");
 			return unauthorizedRule();
 		} catch (GeneralSecurityException e) {
@@ -157,8 +162,7 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 		RequestTypeEnum requestType = theRequest.getRequestType();
 		boolean isPostSearch = isPostSearchRequest(theRequest);
 		boolean hasAdminRole = clientRoles.contains(getOAuthAdminRole());
-		String auditRole = getOAuthAuditRole();
-		boolean hasAuditRole = !Strings.isNullOrEmpty(auditRole) && clientRoles.contains(auditRole);
+		boolean hasAuditRole = hasAuditRole(clientRoles);
 		if (requestType == RequestTypeEnum.POST && !isPostSearch) {
 			if (clientRoles.contains(getOAuthUserRole()) || hasAdminRole || hasAuditRole) {
 				return authorizedRule();
@@ -193,6 +197,28 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 
 		logger.warn("Authorization failure - token doesn't have the admin role required for Subscription");
 		return unauthorizedRule();
+	}
+
+	// A transaction is posted to the server base, so it carries no resource name and never reaches
+	// authorizeAuditEventRequest. audit-api writes the events of one data-access request as a single
+	// transaction so they are stored together or not at all. The audit role may post one, but each
+	// entry is checked on its own and only AuditEvent creates pass, so the role gains nothing beyond
+	// what it already has on POST /AuditEvent.
+	private List<IAuthRule> auditEventTransactionRule() {
+		return new RuleBuilder()
+			.allow().transaction().withAnyOperation().andApplyNormalRules().andThen()
+			.allow().create().resourcesOfType(AUDIT_EVENT_RESOURCE).withAnyId().andThen()
+			.denyAll()
+			.build();
+	}
+
+	private boolean isTransactionRequest(RequestDetails theRequest) {
+		return theRequest.getRestOperationType() == RestOperationTypeEnum.TRANSACTION;
+	}
+
+	private boolean hasAuditRole(List<String> clientRoles) {
+		String auditRole = getOAuthAuditRole();
+		return !Strings.isNullOrEmpty(auditRole) && clientRoles.contains(auditRole);
 	}
 
 	private boolean isAuditEventRequest(RequestDetails theRequest) {

@@ -18,6 +18,7 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.hl7.fhir.r4.model.AuditEvent;
 import org.hl7.fhir.r4.model.Bundle;
@@ -28,7 +29,9 @@ import org.hl7.fhir.r4.model.IdType;
 import org.hl7.fhir.r4.model.Identifier;
 import org.hl7.fhir.r4.model.IntegerType;
 import org.hl7.fhir.r4.model.Parameters;
+import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Reference;
+import org.hl7.fhir.r4.model.Resource;
 import org.hl7.fhir.r4.model.StringType;
 import org.hl7.fhir.r4.model.Type;
 import org.junit.jupiter.api.AfterAll;
@@ -240,6 +243,29 @@ class OAuthMultitenantServerR4IT {
   }
 
   @Test
+  void auditEventTransaction_allowed_forAuditRole() {
+    ourTenantInterceptor.setTenantId(TENANT_A);
+    String marker = UUID.randomUUID().toString();
+
+    Bundle response = postTransaction(
+      transactionOf(markedAuditEvent(marker), markedAuditEvent(marker)), myAuditToken);
+
+    assertEquals(2, response.getEntry().size());
+    response.getEntry().forEach(entry -> assertTrue(entry.getResponse().getStatus().startsWith("201")));
+    assertEquals(2, countAuditEventsMarked(marker, myAdminToken));
+  }
+
+  @Test
+  void auditEventTransaction_withOtherResource_deniedAndNothingStored_forAuditRole() {
+    ourTenantInterceptor.setTenantId(TENANT_A);
+    String marker = UUID.randomUUID().toString();
+
+    assertForbidden(() -> postTransaction(
+      transactionOf(markedAuditEvent(marker), new Patient().setActive(true)), myAuditToken));
+    assertEquals(0, countAuditEventsMarked(marker, myAdminToken));
+  }
+
+  @Test
   void rosterLaunch_tenantIsolation_enforcedForSearch() {
     ourTenantInterceptor.setTenantId(TENANT_A);
     createAuditEvent(buildRosterLaunchAuditEvent(), myUserToken);
@@ -355,6 +381,46 @@ class OAuthMultitenantServerR4IT {
       .withAdditionalHeader(HttpHeaders.AUTHORIZATION, bearer(token))
       .execute()
       .getResource();
+  }
+
+  private static Bundle transactionOf(Resource... resources) {
+    Bundle bundle = new Bundle().setType(Bundle.BundleType.TRANSACTION);
+    for (Resource resource : resources) {
+      bundle.addEntry()
+        .setResource(resource)
+        .getRequest()
+        .setMethod(Bundle.HTTPVerb.POST)
+        .setUrl(resource.fhirType());
+    }
+    return bundle;
+  }
+
+  // Tags the event so a search finds only the events one test wrote; the unfiltered search is
+  // capped at one page and other tests share the partition.
+  private AuditEvent markedAuditEvent(String marker) {
+    AuditEvent event = buildRosterLaunchAuditEvent();
+    event.addEntity().setName(marker);
+    return event;
+  }
+
+  private int countAuditEventsMarked(String marker, String token) {
+    Bundle result = ourClient
+      .search()
+      .forResource(AuditEvent.class)
+      .where(AuditEvent.ENTITY_NAME.matchesExactly().value(marker))
+      .returnBundle(Bundle.class)
+      .cacheControl(new CacheControlDirective().setNoCache(true))
+      .withAdditionalHeader(HttpHeaders.AUTHORIZATION, bearer(token))
+      .execute();
+    return result.getEntry().size();
+  }
+
+  private Bundle postTransaction(Bundle bundle, String token) {
+    return ourClient
+      .transaction()
+      .withBundle(bundle)
+      .withAdditionalHeader(HttpHeaders.AUTHORIZATION, bearer(token))
+      .execute();
   }
 
   private AuditEvent readAuditEvent(String id, String token) {

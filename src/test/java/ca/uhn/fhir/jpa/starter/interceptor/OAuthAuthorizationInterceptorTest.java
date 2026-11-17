@@ -31,6 +31,7 @@ import ca.uhn.fhir.jpa.starter.identity.ActingIdentityResolver;
 import ca.uhn.fhir.jpa.starter.util.OAuth2Helper;
 import ca.uhn.fhir.rest.api.Constants;
 import ca.uhn.fhir.rest.api.RequestTypeEnum;
+import ca.uhn.fhir.rest.api.RestOperationTypeEnum;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.server.exceptions.AuthenticationException;
 import ca.uhn.fhir.rest.server.interceptor.auth.IAuthRule;
@@ -440,6 +441,60 @@ class OAuthAuthorizationInterceptorTest {
 			helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
 			helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(List.of("audit-api-role"));
 			jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
+
+			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
+			assertRuleListMatches(rules, unauthorizedRules());
+		}
+	}
+
+	@Test
+	void buildRuleList_transaction_auditRole_allowsOnlyAuditEventCreates() {
+		givenTransactionRequest();
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
+			givenVerifiedTokenWithRoles(helperMock, jwtMock, List.of("audit-api-role"));
+
+			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
+			assertRuleListMatches(rules, auditEventTransactionRules());
+		}
+	}
+
+	@Test
+	void buildRuleList_transaction_auditRoleUnconfigured_isUnauthorized() {
+		myAppProperties.getOauth().setAudit_role(null);
+		givenTransactionRequest();
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
+			givenVerifiedTokenWithRoles(helperMock, jwtMock, List.of("audit-api-role"));
+
+			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
+			assertRuleListMatches(rules, unauthorizedRules());
+		}
+	}
+
+	@Test
+	void buildRuleList_transaction_userRole_allowsAll() {
+		givenTransactionRequest();
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
+			givenVerifiedTokenWithRoles(helperMock, jwtMock, List.of("user-role"));
+			helperMock.when(() -> OAuth2Helper.getClaimAsString(myDecodedJwt, "patient")).thenReturn(null);
+
+			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
+			assertRuleListMatches(rules, allowAllRules());
+		}
+	}
+
+	@Test
+	void buildRuleList_transaction_unrelatedRole_isUnauthorized() {
+		givenTransactionRequest();
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
+			givenVerifiedTokenWithRoles(helperMock, jwtMock, List.of("some-other-role"));
 
 			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
 			assertRuleListMatches(rules, unauthorizedRules());
@@ -888,6 +943,30 @@ class OAuthAuthorizationInterceptorTest {
 			assertThrows(AuthenticationException.class, () -> myInterceptor.buildRuleList(myRequestDetails));
 			assertFalse(userData.containsKey(ActingIdentity.USER_DATA_KEY));
 		}
+	}
+
+	private void givenTransactionRequest() {
+		when(myRequestDetails.getResourceName()).thenReturn(null);
+		when(myRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.POST);
+		when(myRequestDetails.getRequestPath()).thenReturn("");
+		when(myRequestDetails.getRestOperationType()).thenReturn(RestOperationTypeEnum.TRANSACTION);
+	}
+
+	private void givenVerifiedTokenWithRoles(MockedStatic<OAuth2Helper> helperMock, MockedStatic<JWT> jwtMock,
+			List<String> roles) {
+		helperMock.when(() -> OAuth2Helper.hasToken(myRequestDetails)).thenReturn(true);
+		helperMock.when(() -> OAuth2Helper.getToken(myRequestDetails)).thenReturn(TEST_TOKEN);
+		helperMock.when(() -> OAuth2Helper.verify(any(DecodedJWT.class), anyString(), anyString())).thenAnswer(invocation -> null);
+		helperMock.when(() -> OAuth2Helper.getClientRoles(myDecodedJwt, "client-a")).thenReturn(roles);
+		jwtMock.when(() -> JWT.decode(TEST_TOKEN)).thenReturn(myDecodedJwt);
+	}
+
+	private List<IAuthRule> auditEventTransactionRules() {
+		return new RuleBuilder()
+			.allow().transaction().withAnyOperation().andApplyNormalRules().andThen()
+			.allow().create().resourcesOfType("AuditEvent").withAnyId().andThen()
+			.denyAll()
+			.build();
 	}
 
 	private void assertRuleListMatches(List<IAuthRule> actual, List<IAuthRule> expected) {
