@@ -16,7 +16,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.hl7.fhir.r4.model.AuditEvent;
+import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.IdType;
+import org.hl7.fhir.r4.model.Patient;
+import org.hl7.fhir.r4.model.Resource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -458,6 +462,33 @@ class OAuthAuthorizationInterceptorTest {
 			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
 			assertRuleListMatches(rules, auditEventTransactionRules());
 		}
+	}
+
+	@Test
+	void buildRuleList_transaction_auditRoleWithReadEntry_isUnauthorized() {
+		assertAuditRoleTransactionIsUnauthorized(auditEventCreatePlus(Bundle.HTTPVerb.GET, "Patient/123", null));
+	}
+
+	@Test
+	void buildRuleList_transaction_auditRoleWithOtherResourceCreate_isUnauthorized() {
+		assertAuditRoleTransactionIsUnauthorized(auditEventCreatePlus(Bundle.HTTPVerb.POST, "Patient", new Patient()));
+	}
+
+	@Test
+	void buildRuleList_transaction_auditRoleWithAuditEventUpdate_isUnauthorized() {
+		assertAuditRoleTransactionIsUnauthorized(
+			auditEventCreatePlus(Bundle.HTTPVerb.PUT, "AuditEvent/123", new AuditEvent()));
+	}
+
+	@Test
+	void buildRuleList_transaction_auditRoleWithConditionalCreate_isUnauthorized() {
+		assertAuditRoleTransactionIsUnauthorized(
+			auditEventCreatePlus(Bundle.HTTPVerb.POST, "AuditEvent?entity-name=x", new AuditEvent()));
+	}
+
+	@Test
+	void buildRuleList_transaction_auditRoleWithEmptyBundle_isUnauthorized() {
+		assertAuditRoleTransactionIsUnauthorized(new Bundle().setType(Bundle.BundleType.TRANSACTION));
 	}
 
 	@Test
@@ -946,10 +977,41 @@ class OAuthAuthorizationInterceptorTest {
 	}
 
 	private void givenTransactionRequest() {
+		Bundle bundle = new Bundle().setType(Bundle.BundleType.TRANSACTION);
+		addEntry(bundle, Bundle.HTTPVerb.POST, "AuditEvent", new AuditEvent());
+		addEntry(bundle, Bundle.HTTPVerb.POST, "AuditEvent", new AuditEvent());
+		givenTransactionRequest(bundle);
+	}
+
+	private void givenTransactionRequest(Bundle bundle) {
 		when(myRequestDetails.getResourceName()).thenReturn(null);
 		when(myRequestDetails.getRequestType()).thenReturn(RequestTypeEnum.POST);
 		when(myRequestDetails.getRequestPath()).thenReturn("");
 		when(myRequestDetails.getRestOperationType()).thenReturn(RestOperationTypeEnum.TRANSACTION);
+		when(myRequestDetails.getResource()).thenReturn(bundle);
+	}
+
+	private static Bundle auditEventCreatePlus(Bundle.HTTPVerb method, String url, Resource resource) {
+		Bundle bundle = new Bundle().setType(Bundle.BundleType.TRANSACTION);
+		addEntry(bundle, Bundle.HTTPVerb.POST, "AuditEvent", new AuditEvent());
+		addEntry(bundle, method, url, resource);
+		return bundle;
+	}
+
+	private static void addEntry(Bundle bundle, Bundle.HTTPVerb method, String url, Resource resource) {
+		bundle.addEntry().setResource(resource).getRequest().setMethod(method).setUrl(url);
+	}
+
+	private void assertAuditRoleTransactionIsUnauthorized(Bundle bundle) {
+		givenTransactionRequest(bundle);
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
+			givenVerifiedTokenWithRoles(helperMock, jwtMock, List.of("audit-api-role"));
+
+			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
+			assertRuleListMatches(rules, unauthorizedRules());
+		}
 	}
 
 	private void givenVerifiedTokenWithRoles(MockedStatic<OAuth2Helper> helperMock, MockedStatic<JWT> jwtMock,

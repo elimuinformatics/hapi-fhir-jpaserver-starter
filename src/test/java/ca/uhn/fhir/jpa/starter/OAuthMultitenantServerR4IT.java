@@ -265,6 +265,69 @@ class OAuthMultitenantServerR4IT {
     assertEquals(0, countAuditEventsMarked(marker, myAdminToken));
   }
 
+  // The audit role may only create AuditEvents in a transaction. Each test pairs a valid create with
+  // one other operation on an existing AuditEvent, and checks that the whole transaction is refused:
+  // the create is not stored and the existing event is still at its first version.
+
+  @Test
+  void auditEventTransaction_withAuditEventRead_deniedAndNothingStored_forAuditRole() {
+    String existingId = createExistingAuditEvent();
+    String marker = UUID.randomUUID().toString();
+
+    assertTransactionDeniedAndNothingChanged(
+      createPlus(marker, Bundle.HTTPVerb.GET, existingId, null), marker, existingId);
+  }
+
+  @Test
+  void auditEventTransaction_withPatientRead_denied_forAuditRole() {
+    ourTenantInterceptor.setTenantId(TENANT_A);
+    Patient patient = (Patient) ourClient
+      .create()
+      .resource(new Patient().setActive(true))
+      .withAdditionalHeader(HttpHeaders.AUTHORIZATION, bearer(myAdminToken))
+      .execute()
+      .getResource();
+    String patientId = patient.getIdElement().toUnqualifiedVersionless().getValue();
+    String marker = UUID.randomUUID().toString();
+
+    assertForbidden(() -> postTransaction(createPlus(marker, Bundle.HTTPVerb.GET, patientId, null), myAuditToken));
+    assertEquals(0, countAuditEventsMarked(marker, myAdminToken));
+  }
+
+  @Test
+  void auditEventTransaction_withAuditEventUpdate_deniedAndNothingChanged_forAuditRole() {
+    String existingId = createExistingAuditEvent();
+    String marker = UUID.randomUUID().toString();
+    AuditEvent replacement = markedAuditEvent(UUID.randomUUID().toString());
+    replacement.setId(existingId);
+
+    assertTransactionDeniedAndNothingChanged(
+      createPlus(marker, Bundle.HTTPVerb.PUT, existingId, replacement), marker, existingId);
+  }
+
+  @Test
+  void auditEventTransaction_withAuditEventPatch_deniedAndNothingChanged_forAuditRole() {
+    String existingId = createExistingAuditEvent();
+    String marker = UUID.randomUUID().toString();
+    Parameters patch = new Parameters();
+    Parameters.ParametersParameterComponent operation = patch.addParameter().setName("operation");
+    operation.addPart().setName("type").setValue(new CodeType("replace"));
+    operation.addPart().setName("path").setValue(new StringType("AuditEvent.outcome"));
+    operation.addPart().setName("value").setValue(new CodeType("8"));
+
+    assertTransactionDeniedAndNothingChanged(
+      createPlus(marker, Bundle.HTTPVerb.PATCH, existingId, patch), marker, existingId);
+  }
+
+  @Test
+  void auditEventTransaction_withAuditEventDelete_deniedAndNothingChanged_forAuditRole() {
+    String existingId = createExistingAuditEvent();
+    String marker = UUID.randomUUID().toString();
+
+    assertTransactionDeniedAndNothingChanged(
+      createPlus(marker, Bundle.HTTPVerb.DELETE, existingId, null), marker, existingId);
+  }
+
   @Test
   void rosterLaunch_tenantIsolation_enforcedForSearch() {
     ourTenantInterceptor.setTenantId(TENANT_A);
@@ -393,6 +456,29 @@ class OAuthMultitenantServerR4IT {
         .setUrl(resource.fhirType());
     }
     return bundle;
+  }
+
+  private Bundle createPlus(String marker, Bundle.HTTPVerb verb, String url, Resource resource) {
+    Bundle bundle = transactionOf(markedAuditEvent(marker));
+    Bundle.BundleEntryComponent entry = bundle.addEntry();
+    if (resource != null) {
+      entry.setResource(resource);
+    }
+    entry.getRequest().setMethod(verb).setUrl(url);
+    return bundle;
+  }
+
+  private String createExistingAuditEvent() {
+    ourTenantInterceptor.setTenantId(TENANT_A);
+    AuditEvent created = createAuditEvent(buildRosterLaunchAuditEvent(), myAuditToken);
+    return created.getIdElement().toUnqualifiedVersionless().getValue();
+  }
+
+  private void assertTransactionDeniedAndNothingChanged(Bundle bundle, String marker, String existingId) {
+    assertForbidden(() -> postTransaction(bundle, myAuditToken));
+    assertEquals(0, countAuditEventsMarked(marker, myAdminToken));
+    AuditEvent existing = readAuditEvent(existingId, myAdminToken);
+    assertEquals("1", existing.getMeta().getVersionId());
   }
 
   // Tags the event so a search finds only the events one test wrote; the unfiltered search is

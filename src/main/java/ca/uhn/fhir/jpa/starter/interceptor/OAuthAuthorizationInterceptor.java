@@ -4,6 +4,8 @@ import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.Map;
 
+import org.hl7.fhir.r4.model.AuditEvent;
+import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.IdType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -128,7 +130,11 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 			}
 
 			if (isTransactionRequest(theRequest) && hasAuditRole(clientRoles)) {
-				return auditEventTransactionRule();
+				if (isAuditEventCreateOnlyBundle(theRequest)) {
+					return auditEventTransactionRule();
+				}
+				logger.warn("Authorization failure - audit role transaction contains an entry other than an AuditEvent create");
+				return unauthorizedRule();
 			}
 
 			logger.warn("Authorization failure - token doesn't have the required client roles");
@@ -201,9 +207,25 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 
 	// A transaction is posted to the server base, so it carries no resource name and never reaches
 	// authorizeAuditEventRequest. audit-api writes the events of one data-access request as a single
-	// transaction so they are stored together or not at all. The audit role may post one, but each
-	// entry is checked on its own and only AuditEvent creates pass, so the role gains nothing beyond
-	// what it already has on POST /AuditEvent.
+	// transaction so they are stored together or not at all. The audit role may post one only when
+	// every entry is an AuditEvent create, so it gains nothing beyond what it already has on
+	// POST /AuditEvent. The bundle is checked here because andApplyNormalRules() checks the writes in
+	// a transaction but does not apply read rules to its GET entries, which would otherwise let this
+	// role read any resource. The rule list below still checks each write entry as a second layer.
+	private boolean isAuditEventCreateOnlyBundle(RequestDetails theRequest) {
+		if (!(theRequest.getResource() instanceof Bundle bundle) || bundle.getEntry().isEmpty()) {
+			return false;
+		}
+		for (Bundle.BundleEntryComponent entry : bundle.getEntry()) {
+			if (entry.getRequest().getMethod() != Bundle.HTTPVerb.POST
+					|| !AUDIT_EVENT_RESOURCE.equals(entry.getRequest().getUrl())
+					|| !(entry.getResource() instanceof AuditEvent)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	private List<IAuthRule> auditEventTransactionRule() {
 		return new RuleBuilder()
 			.allow().transaction().withAnyOperation().andApplyNormalRules().andThen()
