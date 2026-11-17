@@ -51,6 +51,7 @@ import com.sun.net.httpserver.HttpServer;
 
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.rest.api.CacheControlDirective;
+import ca.uhn.fhir.rest.api.Constants;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
 import ca.uhn.fhir.rest.client.interceptor.UrlTenantSelectionInterceptor;
@@ -252,6 +253,29 @@ class OAuthMultitenantServerR4IT {
 
     assertEquals(2, response.getEntry().size());
     response.getEntry().forEach(entry -> assertTrue(entry.getResponse().getStatus().startsWith("201")));
+    assertEquals(2, countAuditEventsMarked(marker, myAdminToken));
+  }
+
+  // With return=representation the response carries the created AuditEvents. The check on that
+  // response runs after the commit, so a denial there would report a failure for stored events and
+  // invite a retry that duplicates them.
+  @Test
+  void auditEventTransaction_returnRepresentation_returnsCreatedEvents_forAuditRole() {
+    ourTenantInterceptor.setTenantId(TENANT_A);
+    String marker = UUID.randomUUID().toString();
+
+    Bundle response = ourClient
+      .transaction()
+      .withBundle(transactionOf(markedAuditEvent(marker), markedAuditEvent(marker)))
+      .withAdditionalHeader(HttpHeaders.AUTHORIZATION, bearer(myAuditToken))
+      .withAdditionalHeader(Constants.HEADER_PREFER, Constants.HEADER_PREFER_RETURN + "=" + Constants.HEADER_PREFER_RETURN_REPRESENTATION)
+      .execute();
+
+    assertEquals(2, response.getEntry().size());
+    response.getEntry().forEach(entry -> {
+      assertTrue(entry.getResponse().getStatus().startsWith("201"));
+      assertTrue(entry.getResource() instanceof AuditEvent);
+    });
     assertEquals(2, countAuditEventsMarked(marker, myAdminToken));
   }
 

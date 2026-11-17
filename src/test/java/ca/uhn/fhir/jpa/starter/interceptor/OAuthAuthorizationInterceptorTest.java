@@ -1027,6 +1027,7 @@ class OAuthAuthorizationInterceptorTest {
 		return new RuleBuilder()
 			.allow().transaction().withAnyOperation().andApplyNormalRules().andThen()
 			.allow().create().resourcesOfType("AuditEvent").withAnyId().andThen()
+			.allow().read().resourcesOfType("AuditEvent").withAnyId().andThen()
 			.denyAll()
 			.build();
 	}

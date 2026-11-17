@@ -230,6 +230,9 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 		return new RuleBuilder()
 			.allow().transaction().withAnyOperation().andApplyNormalRules().andThen()
 			.allow().create().resourcesOfType(AUDIT_EVENT_RESOURCE).withAnyId().andThen()
+			// With Prefer: return=representation the response carries the created AuditEvents, and HAPI
+			// checks each as a read after the commit. The role can already read AuditEvent.
+			.allow().read().resourcesOfType(AUDIT_EVENT_RESOURCE).withAnyId().andThen()
 			.denyAll()
 			.build();
 	}
