@@ -4,6 +4,8 @@ import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.Map;
 
+import org.hl7.fhir.r4.model.AuditEvent;
+import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.IdType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +21,7 @@ import ca.uhn.fhir.jpa.starter.identity.ActingIdentityResolver;
 import ca.uhn.fhir.jpa.starter.util.OAuth2Helper;
 import ca.uhn.fhir.rest.api.Constants;
 import ca.uhn.fhir.rest.api.RequestTypeEnum;
+import ca.uhn.fhir.rest.api.RestOperationTypeEnum;
 import ca.uhn.fhir.rest.api.server.RequestDetails;
 import ca.uhn.fhir.rest.server.exceptions.AuthenticationException;
 import ca.uhn.fhir.rest.server.interceptor.auth.AuthorizationInterceptor;
@@ -157,11 +160,10 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 		RequestTypeEnum requestType = theRequest.getRequestType();
 		boolean isPostSearch = isPostSearchRequest(theRequest);
 		boolean hasAdminRole = clientRoles.contains(getOAuthAdminRole());
-		String auditRole = getOAuthAuditRole();
-		boolean hasAuditRole = !Strings.isNullOrEmpty(auditRole) && clientRoles.contains(auditRole);
+		boolean hasAuditRole = hasAuditRole(clientRoles);
 		if (requestType == RequestTypeEnum.POST && !isPostSearch) {
 			if (clientRoles.contains(getOAuthUserRole()) || hasAdminRole || hasAuditRole) {
-				return authorizedRule();
+				return isTransactionRequest(theRequest) ? auditEventTransactionRule() : authorizedRule();
 			}
 			logger.warn("Authorization failure - token doesn't have a permitted role for AuditEvent create");
 			return unauthorizedRule();
@@ -195,8 +197,50 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 		return unauthorizedRule();
 	}
 
+	// audit-api writes the events of one data-access request as a single transaction so they are
+	// stored together or not at all. A transaction counts as an AuditEvent request only when every
+	// entry is an AuditEvent create, so a role gains nothing beyond what it already has on
+	// POST /AuditEvent. The bundle is checked here because andApplyNormalRules() checks the writes in
+	// a transaction but does not apply read rules to its GET entries, which would otherwise let the
+	// audit role read any resource. The rule list below still checks each write entry as a second layer.
+	private boolean isAuditEventCreateOnlyBundle(RequestDetails theRequest) {
+		if (!(theRequest.getResource() instanceof Bundle bundle) || bundle.getEntry().isEmpty()) {
+			return false;
+		}
+		for (Bundle.BundleEntryComponent entry : bundle.getEntry()) {
+			if (entry.getRequest().getMethod() != Bundle.HTTPVerb.POST
+					|| !AUDIT_EVENT_RESOURCE.equals(entry.getRequest().getUrl())
+					|| !(entry.getResource() instanceof AuditEvent)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private List<IAuthRule> auditEventTransactionRule() {
+		return new RuleBuilder()
+			.allow().transaction().withAnyOperation().andApplyNormalRules().andThen()
+			.allow().create().resourcesOfType(AUDIT_EVENT_RESOURCE).withAnyId().andThen()
+			// With Prefer: return=representation the response carries the created AuditEvents, and HAPI
+			// checks each as a read after the commit. The role can already read AuditEvent.
+			.allow().read().resourcesOfType(AUDIT_EVENT_RESOURCE).withAnyId().andThen()
+			.denyAll()
+			.build();
+	}
+
+	private boolean isTransactionRequest(RequestDetails theRequest) {
+		return theRequest.getRestOperationType() == RestOperationTypeEnum.TRANSACTION;
+	}
+
+	private boolean hasAuditRole(List<String> clientRoles) {
+		String auditRole = getOAuthAuditRole();
+		return !Strings.isNullOrEmpty(auditRole) && clientRoles.contains(auditRole);
+	}
+
+	// A transaction is posted to the server base, so it carries no resource name.
 	private boolean isAuditEventRequest(RequestDetails theRequest) {
-		return AUDIT_EVENT_RESOURCE.equalsIgnoreCase(theRequest.getResourceName());
+		return AUDIT_EVENT_RESOURCE.equalsIgnoreCase(theRequest.getResourceName())
+			|| (isTransactionRequest(theRequest) && isAuditEventCreateOnlyBundle(theRequest));
 	}
 
 	private boolean isSubscriptionRequest(RequestDetails theRequest) {

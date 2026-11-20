@@ -18,6 +18,7 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.hl7.fhir.r4.model.AuditEvent;
 import org.hl7.fhir.r4.model.Bundle;
@@ -28,7 +29,9 @@ import org.hl7.fhir.r4.model.IdType;
 import org.hl7.fhir.r4.model.Identifier;
 import org.hl7.fhir.r4.model.IntegerType;
 import org.hl7.fhir.r4.model.Parameters;
+import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Reference;
+import org.hl7.fhir.r4.model.Resource;
 import org.hl7.fhir.r4.model.StringType;
 import org.hl7.fhir.r4.model.Type;
 import org.junit.jupiter.api.AfterAll;
@@ -48,6 +51,7 @@ import com.sun.net.httpserver.HttpServer;
 
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.rest.api.CacheControlDirective;
+import ca.uhn.fhir.rest.api.Constants;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
 import ca.uhn.fhir.rest.client.interceptor.UrlTenantSelectionInterceptor;
@@ -133,19 +137,19 @@ class OAuthMultitenantServerR4IT {
   @Test
   void rosterLaunch_postAllowed_forNonAdminRole() {
     ourTenantInterceptor.setTenantId(TENANT_A);
-    int beforeCount = searchAuditEventCount(myAdminToken);
-    AuditEvent created = createAuditEvent(buildRosterLaunchAuditEvent(), myUserToken);
+    String marker = UUID.randomUUID().toString();
+    AuditEvent created = createAuditEvent(markedAuditEvent(marker), myUserToken);
     assertTrue(created.hasIdElement());
-    assertEquals(beforeCount + 1, searchAuditEventCount(myAdminToken));
+    assertEquals(1, countAuditEventsMarked(marker, myAdminToken));
   }
 
   @Test
   void rosterLaunch_postAllowed_forAdminRole() {
     ourTenantInterceptor.setTenantId(TENANT_A);
-    int beforeCount = searchAuditEventCount(myAdminToken);
-    AuditEvent created = createAuditEvent(buildRosterLaunchAuditEvent(), myAdminToken);
+    String marker = UUID.randomUUID().toString();
+    AuditEvent created = createAuditEvent(markedAuditEvent(marker), myAdminToken);
     assertTrue(created.hasIdElement());
-    assertEquals(beforeCount + 1, searchAuditEventCount(myAdminToken));
+    assertEquals(1, countAuditEventsMarked(marker, myAdminToken));
   }
 
   @Test
@@ -237,6 +241,128 @@ class OAuthMultitenantServerR4IT {
     String auditEventId = created.getIdElement().toUnqualifiedVersionless().getValue();
 
     assertForbidden(() -> deleteAuditEvent(auditEventId, myAuditToken));
+  }
+
+  @Test
+  void auditEventTransaction_allowed_forAuditRole() {
+    ourTenantInterceptor.setTenantId(TENANT_A);
+    String marker = UUID.randomUUID().toString();
+
+    Bundle response = postTransaction(
+      transactionOf(markedAuditEvent(marker), markedAuditEvent(marker)), myAuditToken);
+
+    assertEquals(2, response.getEntry().size());
+    response.getEntry().forEach(entry -> assertTrue(entry.getResponse().getStatus().startsWith("201")));
+    assertEquals(2, countAuditEventsMarked(marker, myAdminToken));
+  }
+
+  // With return=representation the response carries the created AuditEvents. The check on that
+  // response runs after the commit, so a denial there would report a failure for stored events and
+  // invite a retry that duplicates them.
+  @Test
+  void auditEventTransaction_returnRepresentation_returnsCreatedEvents_forAuditRole() {
+    ourTenantInterceptor.setTenantId(TENANT_A);
+    String marker = UUID.randomUUID().toString();
+
+    Bundle response = ourClient
+      .transaction()
+      .withBundle(transactionOf(markedAuditEvent(marker), markedAuditEvent(marker)))
+      .withAdditionalHeader(HttpHeaders.AUTHORIZATION, bearer(myAuditToken))
+      .withAdditionalHeader(Constants.HEADER_PREFER, Constants.HEADER_PREFER_RETURN + "=" + Constants.HEADER_PREFER_RETURN_REPRESENTATION)
+      .execute();
+
+    assertEquals(2, response.getEntry().size());
+    response.getEntry().forEach(entry -> {
+      assertTrue(entry.getResponse().getStatus().startsWith("201"));
+      assertTrue(entry.getResource() instanceof AuditEvent);
+    });
+    assertEquals(2, countAuditEventsMarked(marker, myAdminToken));
+  }
+
+  @Test
+  void auditEventTransaction_withOtherResource_deniedAndNothingStored_forAuditRole() {
+    ourTenantInterceptor.setTenantId(TENANT_A);
+    String marker = UUID.randomUUID().toString();
+
+    assertForbidden(() -> postTransaction(
+      transactionOf(markedAuditEvent(marker), new Patient().setActive(true)), myAuditToken));
+    assertEquals(0, countAuditEventsMarked(marker, myAdminToken));
+  }
+
+  @Test
+  void auditEventTransaction_allowed_forUserRole() {
+    ourTenantInterceptor.setTenantId(TENANT_A);
+    String marker = UUID.randomUUID().toString();
+
+    Bundle response = postTransaction(
+      transactionOf(markedAuditEvent(marker), markedAuditEvent(marker)), myUserToken);
+
+    assertEquals(2, response.getEntry().size());
+    response.getEntry().forEach(entry -> assertTrue(entry.getResponse().getStatus().startsWith("201")));
+    assertEquals(2, countAuditEventsMarked(marker, myAdminToken));
+  }
+
+  // The audit role may only create AuditEvents in a transaction. Each test pairs a valid create with
+  // one other operation on an existing AuditEvent, and checks that the whole transaction is refused:
+  // the create is not stored and the existing event is still at its first version.
+
+  @Test
+  void auditEventTransaction_withAuditEventRead_deniedAndNothingStored_forAuditRole() {
+    String existingId = createExistingAuditEvent();
+    String marker = UUID.randomUUID().toString();
+
+    assertTransactionDeniedAndNothingChanged(
+      createPlus(marker, Bundle.HTTPVerb.GET, existingId, null), marker, existingId);
+  }
+
+  @Test
+  void auditEventTransaction_withPatientRead_denied_forAuditRole() {
+    ourTenantInterceptor.setTenantId(TENANT_A);
+    Patient patient = (Patient) ourClient
+      .create()
+      .resource(new Patient().setActive(true))
+      .withAdditionalHeader(HttpHeaders.AUTHORIZATION, bearer(myAdminToken))
+      .execute()
+      .getResource();
+    String patientId = patient.getIdElement().toUnqualifiedVersionless().getValue();
+    String marker = UUID.randomUUID().toString();
+
+    assertForbidden(() -> postTransaction(createPlus(marker, Bundle.HTTPVerb.GET, patientId, null), myAuditToken));
+    assertEquals(0, countAuditEventsMarked(marker, myAdminToken));
+  }
+
+  @Test
+  void auditEventTransaction_withAuditEventUpdate_deniedAndNothingChanged_forAuditRole() {
+    String existingId = createExistingAuditEvent();
+    String marker = UUID.randomUUID().toString();
+    AuditEvent replacement = markedAuditEvent(UUID.randomUUID().toString());
+    replacement.setId(existingId);
+
+    assertTransactionDeniedAndNothingChanged(
+      createPlus(marker, Bundle.HTTPVerb.PUT, existingId, replacement), marker, existingId);
+  }
+
+  @Test
+  void auditEventTransaction_withAuditEventPatch_deniedAndNothingChanged_forAuditRole() {
+    String existingId = createExistingAuditEvent();
+    String marker = UUID.randomUUID().toString();
+    Parameters patch = new Parameters();
+    Parameters.ParametersParameterComponent operation = patch.addParameter().setName("operation");
+    operation.addPart().setName("type").setValue(new CodeType("replace"));
+    operation.addPart().setName("path").setValue(new StringType("AuditEvent.outcome"));
+    operation.addPart().setName("value").setValue(new CodeType("8"));
+
+    assertTransactionDeniedAndNothingChanged(
+      createPlus(marker, Bundle.HTTPVerb.PATCH, existingId, patch), marker, existingId);
+  }
+
+  @Test
+  void auditEventTransaction_withAuditEventDelete_deniedAndNothingChanged_forAuditRole() {
+    String existingId = createExistingAuditEvent();
+    String marker = UUID.randomUUID().toString();
+
+    assertTransactionDeniedAndNothingChanged(
+      createPlus(marker, Bundle.HTTPVerb.DELETE, existingId, null), marker, existingId);
   }
 
   @Test
@@ -355,6 +481,69 @@ class OAuthMultitenantServerR4IT {
       .withAdditionalHeader(HttpHeaders.AUTHORIZATION, bearer(token))
       .execute()
       .getResource();
+  }
+
+  private static Bundle transactionOf(Resource... resources) {
+    Bundle bundle = new Bundle().setType(Bundle.BundleType.TRANSACTION);
+    for (Resource resource : resources) {
+      bundle.addEntry()
+        .setResource(resource)
+        .getRequest()
+        .setMethod(Bundle.HTTPVerb.POST)
+        .setUrl(resource.fhirType());
+    }
+    return bundle;
+  }
+
+  private Bundle createPlus(String marker, Bundle.HTTPVerb verb, String url, Resource resource) {
+    Bundle bundle = transactionOf(markedAuditEvent(marker));
+    Bundle.BundleEntryComponent entry = bundle.addEntry();
+    if (resource != null) {
+      entry.setResource(resource);
+    }
+    entry.getRequest().setMethod(verb).setUrl(url);
+    return bundle;
+  }
+
+  private String createExistingAuditEvent() {
+    ourTenantInterceptor.setTenantId(TENANT_A);
+    AuditEvent created = createAuditEvent(buildRosterLaunchAuditEvent(), myAuditToken);
+    return created.getIdElement().toUnqualifiedVersionless().getValue();
+  }
+
+  private void assertTransactionDeniedAndNothingChanged(Bundle bundle, String marker, String existingId) {
+    assertForbidden(() -> postTransaction(bundle, myAuditToken));
+    assertEquals(0, countAuditEventsMarked(marker, myAdminToken));
+    AuditEvent existing = readAuditEvent(existingId, myAdminToken);
+    assertEquals("1", existing.getMeta().getVersionId());
+  }
+
+  // Tags the event so a search finds only the events one test wrote; the unfiltered search is
+  // capped at one page and other tests share the partition.
+  private AuditEvent markedAuditEvent(String marker) {
+    AuditEvent event = buildRosterLaunchAuditEvent();
+    event.addEntity().setName(marker);
+    return event;
+  }
+
+  private int countAuditEventsMarked(String marker, String token) {
+    Bundle result = ourClient
+      .search()
+      .forResource(AuditEvent.class)
+      .where(AuditEvent.ENTITY_NAME.matchesExactly().value(marker))
+      .returnBundle(Bundle.class)
+      .cacheControl(new CacheControlDirective().setNoCache(true))
+      .withAdditionalHeader(HttpHeaders.AUTHORIZATION, bearer(token))
+      .execute();
+    return result.getEntry().size();
+  }
+
+  private Bundle postTransaction(Bundle bundle, String token) {
+    return ourClient
+      .transaction()
+      .withBundle(bundle)
+      .withAdditionalHeader(HttpHeaders.AUTHORIZATION, bearer(token))
+      .execute();
   }
 
   private AuditEvent readAuditEvent(String id, String token) {
