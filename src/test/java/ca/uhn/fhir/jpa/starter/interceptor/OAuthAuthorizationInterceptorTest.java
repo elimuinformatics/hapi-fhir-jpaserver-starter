@@ -481,7 +481,7 @@ class OAuthAuthorizationInterceptorTest {
 	}
 
 	@Test
-	void buildRuleList_transaction_auditRoleWithConditionalCreate_isUnauthorized() {
+	void buildRuleList_transaction_auditRoleWithQueryInEntryUrl_isUnauthorized() {
 		assertAuditRoleTransactionIsUnauthorized(
 			auditEventCreatePlus(Bundle.HTTPVerb.POST, "AuditEvent?entity-name=x", new AuditEvent()));
 	}
@@ -505,9 +505,37 @@ class OAuthAuthorizationInterceptorTest {
 		}
 	}
 
+	// A transaction of AuditEvent creates is authorized with single AuditEvent creates, so it gets the
+	// same roles as POST /AuditEvent and the AuditEvent-only rule list.
 	@Test
-	void buildRuleList_transaction_userRole_allowsAll() {
+	void buildRuleList_transaction_userRole_auditEventCreates_getAuditEventTransactionRules() {
 		givenTransactionRequest();
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
+			givenVerifiedTokenWithRoles(helperMock, jwtMock, List.of("user-role"));
+
+			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
+			assertRuleListMatches(rules, auditEventTransactionRules());
+		}
+	}
+
+	@Test
+	void buildRuleList_transaction_adminRole_auditEventCreates_getAuditEventTransactionRules() {
+		givenTransactionRequest();
+
+		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
+			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {
+			givenVerifiedTokenWithRoles(helperMock, jwtMock, List.of("admin-role"));
+
+			List<IAuthRule> rules = myInterceptor.buildRuleList(myRequestDetails);
+			assertRuleListMatches(rules, auditEventTransactionRules());
+		}
+	}
+
+	@Test
+	void buildRuleList_transaction_userRole_otherEntries_allowsAll() {
+		givenTransactionRequest(auditEventCreatePlus(Bundle.HTTPVerb.POST, "Patient", new Patient()));
 
 		try (MockedStatic<OAuth2Helper> helperMock = mockStatic(OAuth2Helper.class);
 			 MockedStatic<JWT> jwtMock = mockStatic(JWT.class)) {

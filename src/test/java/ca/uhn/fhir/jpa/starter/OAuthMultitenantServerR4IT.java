@@ -137,19 +137,19 @@ class OAuthMultitenantServerR4IT {
   @Test
   void rosterLaunch_postAllowed_forNonAdminRole() {
     ourTenantInterceptor.setTenantId(TENANT_A);
-    int beforeCount = searchAuditEventCount(myAdminToken);
-    AuditEvent created = createAuditEvent(buildRosterLaunchAuditEvent(), myUserToken);
+    String marker = UUID.randomUUID().toString();
+    AuditEvent created = createAuditEvent(markedAuditEvent(marker), myUserToken);
     assertTrue(created.hasIdElement());
-    assertEquals(beforeCount + 1, searchAuditEventCount(myAdminToken));
+    assertEquals(1, countAuditEventsMarked(marker, myAdminToken));
   }
 
   @Test
   void rosterLaunch_postAllowed_forAdminRole() {
     ourTenantInterceptor.setTenantId(TENANT_A);
-    int beforeCount = searchAuditEventCount(myAdminToken);
-    AuditEvent created = createAuditEvent(buildRosterLaunchAuditEvent(), myAdminToken);
+    String marker = UUID.randomUUID().toString();
+    AuditEvent created = createAuditEvent(markedAuditEvent(marker), myAdminToken);
     assertTrue(created.hasIdElement());
-    assertEquals(beforeCount + 1, searchAuditEventCount(myAdminToken));
+    assertEquals(1, countAuditEventsMarked(marker, myAdminToken));
   }
 
   @Test
@@ -287,6 +287,19 @@ class OAuthMultitenantServerR4IT {
     assertForbidden(() -> postTransaction(
       transactionOf(markedAuditEvent(marker), new Patient().setActive(true)), myAuditToken));
     assertEquals(0, countAuditEventsMarked(marker, myAdminToken));
+  }
+
+  @Test
+  void auditEventTransaction_allowed_forUserRole() {
+    ourTenantInterceptor.setTenantId(TENANT_A);
+    String marker = UUID.randomUUID().toString();
+
+    Bundle response = postTransaction(
+      transactionOf(markedAuditEvent(marker), markedAuditEvent(marker)), myUserToken);
+
+    assertEquals(2, response.getEntry().size());
+    response.getEntry().forEach(entry -> assertTrue(entry.getResponse().getStatus().startsWith("201")));
+    assertEquals(2, countAuditEventsMarked(marker, myAdminToken));
   }
 
   // The audit role may only create AuditEvents in a transaction. Each test pairs a valid create with

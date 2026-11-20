@@ -129,14 +129,6 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 				}
 			}
 
-			if (isTransactionRequest(theRequest) && hasAuditRole(clientRoles)) {
-				if (isAuditEventCreateOnlyBundle(theRequest)) {
-					return auditEventTransactionRule();
-				}
-				logger.warn("Authorization failure - audit role transaction contains an entry other than an AuditEvent create");
-				return unauthorizedRule();
-			}
-
 			logger.warn("Authorization failure - token doesn't have the required client roles");
 			return unauthorizedRule();
 		} catch (GeneralSecurityException e) {
@@ -171,7 +163,7 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 		boolean hasAuditRole = hasAuditRole(clientRoles);
 		if (requestType == RequestTypeEnum.POST && !isPostSearch) {
 			if (clientRoles.contains(getOAuthUserRole()) || hasAdminRole || hasAuditRole) {
-				return authorizedRule();
+				return isTransactionRequest(theRequest) ? auditEventTransactionRule() : authorizedRule();
 			}
 			logger.warn("Authorization failure - token doesn't have a permitted role for AuditEvent create");
 			return unauthorizedRule();
@@ -205,13 +197,12 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 		return unauthorizedRule();
 	}
 
-	// A transaction is posted to the server base, so it carries no resource name and never reaches
-	// authorizeAuditEventRequest. audit-api writes the events of one data-access request as a single
-	// transaction so they are stored together or not at all. The audit role may post one only when
-	// every entry is an AuditEvent create, so it gains nothing beyond what it already has on
+	// audit-api writes the events of one data-access request as a single transaction so they are
+	// stored together or not at all. A transaction counts as an AuditEvent request only when every
+	// entry is an AuditEvent create, so a role gains nothing beyond what it already has on
 	// POST /AuditEvent. The bundle is checked here because andApplyNormalRules() checks the writes in
-	// a transaction but does not apply read rules to its GET entries, which would otherwise let this
-	// role read any resource. The rule list below still checks each write entry as a second layer.
+	// a transaction but does not apply read rules to its GET entries, which would otherwise let the
+	// audit role read any resource. The rule list below still checks each write entry as a second layer.
 	private boolean isAuditEventCreateOnlyBundle(RequestDetails theRequest) {
 		if (!(theRequest.getResource() instanceof Bundle bundle) || bundle.getEntry().isEmpty()) {
 			return false;
@@ -246,8 +237,10 @@ public class OAuthAuthorizationInterceptor extends AuthorizationInterceptor {
 		return !Strings.isNullOrEmpty(auditRole) && clientRoles.contains(auditRole);
 	}
 
+	// A transaction is posted to the server base, so it carries no resource name.
 	private boolean isAuditEventRequest(RequestDetails theRequest) {
-		return AUDIT_EVENT_RESOURCE.equalsIgnoreCase(theRequest.getResourceName());
+		return AUDIT_EVENT_RESOURCE.equalsIgnoreCase(theRequest.getResourceName())
+			|| (isTransactionRequest(theRequest) && isAuditEventCreateOnlyBundle(theRequest));
 	}
 
 	private boolean isSubscriptionRequest(RequestDetails theRequest) {
